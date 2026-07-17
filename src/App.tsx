@@ -1,0 +1,65 @@
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { AppShell } from './components/AppShell';
+import { CheckoutPage } from './pages/CheckoutPage';
+import { DetailPage } from './pages/DetailPage';
+import { DonePage } from './pages/DonePage';
+import { FeedPage } from './pages/FeedPage';
+import { FulfillVideoPage } from './pages/FulfillVideoPage';
+import { FulfillVoicePage } from './pages/FulfillVoicePage';
+import { GroupConfirmPage } from './pages/GroupConfirmPage';
+import { GroupDetailPage } from './pages/GroupDetailPage';
+import { HomePage } from './pages/HomePage';
+import { MessagesPage } from './pages/MessagesPage';
+import { OrdersPage } from './pages/OrdersPage';
+import { PayPage } from './pages/PayPage';
+import { CreateMomentPage } from './pages/CreateMomentPage';
+import { MyMomentsPage } from './pages/MyMomentsPage';
+import { PendingAcceptPage } from './pages/PendingAcceptPage';
+import {
+  CategoryPage,
+  NotFoundPage,
+  PublishPage,
+  TaMomentPage,
+} from './pages/PlaceholderPages';
+import { ProfilePage } from './pages/ProfilePage';
+import { TransferPlaceholderPage } from './pages/TransferPlaceholderPage';
+import { WaitingPage } from './pages/WaitingPage';
+import { useHydrateStore } from './state/orderStore';
+
+export default function App() {
+  useHydrateStore();
+
+  return (
+    <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || undefined}>
+      <div className="app-root">
+        <Routes>
+          <Route element={<AppShell />}>
+            <Route index element={<HomePage />} />
+            <Route path="feed" element={<FeedPage />} />
+            <Route path="messages" element={<MessagesPage />} />
+            <Route path="publish" element={<PublishPage />} />
+            <Route path="profile" element={<ProfilePage />} />
+            <Route path="profile/orders" element={<OrdersPage />} />
+            <Route path="profile/my-moments" element={<MyMomentsPage />} />
+            <Route path="profile/my-moments/create" element={<CreateMomentPage />} />
+            <Route path="category/:key" element={<CategoryPage />} />
+            <Route path="moment/:momentId" element={<DetailPage />} />
+            <Route path="group/:groupId" element={<GroupDetailPage />} />
+            <Route path="group-order/:orderId" element={<GroupConfirmPage />} />
+            <Route path="transfer/:transferId" element={<TransferPlaceholderPage />} />
+            <Route path="ta/:providerId" element={<TaMomentPage />} />
+            <Route path="checkout/:momentId" element={<CheckoutPage />} />
+            <Route path="pay/:orderId" element={<PayPage />} />
+            <Route path="pending-accept/:orderId" element={<PendingAcceptPage />} />
+            <Route path="waiting/:orderId" element={<WaitingPage />} />
+            <Route path="fulfill/voice/:orderId" element={<FulfillVoicePage />} />
+            <Route path="fulfill/video/:orderId" element={<FulfillVideoPage />} />
+            <Route path="done/:orderId" element={<DonePage />} />
+            <Route path="home" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Route>
+        </Routes>
+      </div>
+    </BrowserRouter>
+  );
+}
