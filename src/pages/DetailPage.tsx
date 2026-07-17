@@ -71,7 +71,11 @@ export function DetailPage() {
         <div className="soft-card soft-card--static">
           {avail.kind === 'now' && (
             <p>
-              <strong>尽快 · 平均响应时长 {avail.waitMin} 分钟内开始</strong>
+              <strong>
+                {moment.avgResponseMin > 0
+                  ? `尽快 · 平均响应时长 ${avail.waitMin} 分钟内开始`
+                  : '尽快 · 新发布'}
+              </strong>
               <br />
               <span className="muted">付款后超时未接自动退款</span>
             </p>
@@ -102,7 +106,10 @@ export function DetailPage() {
       <div className="bottom-cta">
         <div>
           <div className="muted">
-            {avail.kind === 'now' && `平均响应时长 ${avail.waitMin} 分钟内开始`}
+            {avail.kind === 'now' &&
+              (moment.avgResponseMin > 0
+                ? `平均响应时长 ${avail.waitMin} 分钟内开始`
+                : '新发布 · 等待 TA 接单')}
             {avail.kind === 'slot' && `最早 ${avail.earliestLabel}`}
             {avail.kind === 'full' && '已约满'}
           </div>

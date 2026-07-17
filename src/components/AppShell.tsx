@@ -13,7 +13,8 @@ export function AppShell() {
     location.pathname.startsWith('/waiting') ||
     location.pathname.startsWith('/fulfill') ||
     location.pathname.startsWith('/done') ||
-    location.pathname.startsWith('/pending-accept');
+    location.pathname.startsWith('/pending-accept') ||
+    location.pathname.startsWith('/profile/my-moments/launch');
 
   return (
     <div className="phone-frame">

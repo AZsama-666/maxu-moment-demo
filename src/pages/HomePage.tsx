@@ -73,6 +73,19 @@ export function HomePage() {
           })}
         </div>
       )}
+
+      <div className="supply-launch-card">
+        <div>
+          <strong>发起自己的 Moment</strong>
+          <p>开放语音、视频或陪玩，让别人来约你</p>
+        </div>
+        <Link
+          to="/profile/my-moments/launch/type"
+          className="btn btn--primary btn--sm"
+        >
+          去发起
+        </Link>
+      </div>
     </div>
   );
 }

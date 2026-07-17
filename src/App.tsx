@@ -12,7 +12,6 @@ import { HomePage } from './pages/HomePage';
 import { MessagesPage } from './pages/MessagesPage';
 import { OrdersPage } from './pages/OrdersPage';
 import { PayPage } from './pages/PayPage';
-import { CreateMomentPage } from './pages/CreateMomentPage';
 import { MyMomentsPage } from './pages/MyMomentsPage';
 import { PendingAcceptPage } from './pages/PendingAcceptPage';
 import {
@@ -22,8 +21,16 @@ import {
   TaMomentPage,
 } from './pages/PlaceholderPages';
 import { ProfilePage } from './pages/ProfilePage';
+import { SupplyManagePage } from './pages/SupplyManagePage';
+import { SupplyTasksPage } from './pages/SupplyTasksPage';
 import { TransferPlaceholderPage } from './pages/TransferPlaceholderPage';
 import { WaitingPage } from './pages/WaitingPage';
+import { LaunchFulfillmentPage } from './pages/launch/LaunchFulfillmentPage';
+import { LaunchPreviewPage } from './pages/launch/LaunchPreviewPage';
+import { LaunchProductPage } from './pages/launch/LaunchProductPage';
+import { LaunchSuccessPage } from './pages/launch/LaunchSuccessPage';
+import { LaunchTypePage } from './pages/launch/LaunchTypePage';
+import { LegacyCreateMomentRedirect } from './pages/launch/LegacyCreateMomentRedirect';
 import { useHydrateStore } from './state/orderStore';
 
 export default function App() {
@@ -41,7 +48,14 @@ export default function App() {
             <Route path="profile" element={<ProfilePage />} />
             <Route path="profile/orders" element={<OrdersPage />} />
             <Route path="profile/my-moments" element={<MyMomentsPage />} />
-            <Route path="profile/my-moments/create" element={<CreateMomentPage />} />
+            <Route path="profile/my-moments/create" element={<LegacyCreateMomentRedirect />} />
+            <Route path="profile/my-moments/launch/type" element={<LaunchTypePage />} />
+            <Route path="profile/my-moments/launch/product" element={<LaunchProductPage />} />
+            <Route path="profile/my-moments/launch/fulfillment" element={<LaunchFulfillmentPage />} />
+            <Route path="profile/my-moments/launch/preview" element={<LaunchPreviewPage />} />
+            <Route path="profile/my-moments/launch/success/:id" element={<LaunchSuccessPage />} />
+            <Route path="profile/my-moments/tasks" element={<SupplyTasksPage />} />
+            <Route path="profile/my-moments/:id/manage" element={<SupplyManagePage />} />
             <Route path="category/:key" element={<CategoryPage />} />
             <Route path="moment/:momentId" element={<DetailPage />} />
             <Route path="group/:groupId" element={<GroupDetailPage />} />

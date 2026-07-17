@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { myPosts, myProfile } from '../data/appShellMock';
-import { useOrders, usePendingAcceptOrders } from '../state/orderStore';
+import { useOrders } from '../state/orderStore';
+import { useSupplyTasks } from '../state/supplyTasks';
 
 const mainTabs = ['动态', '产品'] as const;
 type MainTab = (typeof mainTabs)[number];
@@ -9,7 +10,7 @@ type MainTab = (typeof mainTabs)[number];
 export function ProfilePage() {
   const [tab, setTab] = useState<MainTab>('动态');
   const orders = useOrders();
-  const pendingAccept = usePendingAcceptOrders();
+  const supplyTasks = useSupplyTasks();
 
   return (
     <div className="profile-page">
@@ -62,10 +63,14 @@ export function ProfilePage() {
           </Link>
         </div>
         <div className="profile-actions profile-actions--second">
-          <Link to="/profile/my-moments" className="profile-action">
-            我的 Moment
-            {pendingAccept.length > 0 && (
-              <span className="action-badge">{pendingAccept.length}</span>
+          <Link
+            to="/profile/my-moments"
+            className="profile-action profile-action--moment"
+          >
+            <span>我的 Moment</span>
+            <small>供给 SKU 与待处理任务</small>
+            {supplyTasks.total > 0 && (
+              <span className="action-badge">{supplyTasks.total}</span>
             )}
           </Link>
         </div>

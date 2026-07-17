@@ -1,12 +1,14 @@
 import { listBrowseMoments } from './catalog';
-import type { CategoryKey, MomentItem } from './mock';
-import { buyerAvailability } from './mock';
+import { buyerAvailability, SELF_PROVIDER_ID, type CategoryKey, type MomentItem } from './mock';
+import { getOpenCompanionListings } from '../state/supplyStore';
 
 export type MarketFilter = 'all' | CategoryKey;
 
 export type GroupListing = {
   kind: 'group';
   id: string;
+  supplyListingId?: string;
+  hostProviderId: string;
   title: string;
   hostName: string;
   avatarColor: string;
@@ -36,6 +38,7 @@ export const groupListings: GroupListing[] = [
   {
     kind: 'group',
     id: 'g-boardgame',
+    hostProviderId: 'p-static-boardgame',
     title: '周末桌游局 · 狼人杀',
     hostName: '阿哲',
     avatarColor: '#E8A05A',
@@ -50,6 +53,7 @@ export const groupListings: GroupListing[] = [
   {
     kind: 'group',
     id: 'g-valorant',
+    hostProviderId: 'p-static-kira',
     title: '瓦罗兰特上分陪玩',
     hostName: 'Kira',
     avatarColor: '#7B6CF6',
@@ -74,8 +78,26 @@ export const transferListings: TransferListing[] = [
   },
 ];
 
+function dynamicCompanionListings(): GroupListing[] {
+  return getOpenCompanionListings().map((listing) => ({
+    kind: 'group',
+    id: listing.id,
+    supplyListingId: listing.id,
+    hostProviderId: SELF_PROVIDER_ID,
+    title: listing.title,
+    hostName: '玛薯 7729',
+    avatarColor: '#4ADCC4',
+    sceneTag: '陪玩',
+    whenLabel: listing.serviceTime,
+    placeLabel: listing.placeLabel,
+    priceYuan: listing.priceYuan,
+    seatsLeft: listing.remaining,
+    description: listing.description,
+  }));
+}
+
 export function getGroupListing(id: string) {
-  return groupListings.find((g) => g.id === id);
+  return [...groupListings, ...dynamicCompanionListings()].find((g) => g.id === id);
 }
 
 export function getTransferListing(id: string) {
@@ -88,7 +110,7 @@ export function listMarketItems(): MarketItem[] {
     kind: '1v1' as const,
     moment,
   }));
-  return [...ones, ...groupListings, ...transferListings];
+  return [...ones, ...groupListings, ...dynamicCompanionListings(), ...transferListings];
 }
 
 export function filterMarketItems(

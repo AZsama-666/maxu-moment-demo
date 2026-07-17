@@ -133,7 +133,9 @@ export function PendingAcceptPage() {
         <div className="checklist">
           <div>✓ 付款成功，已通知对方接单</div>
           <div>
-            ○ TA 的平均响应时长 {moment?.avgResponseMin || '—'} 分钟
+            {moment && moment.avgResponseMin > 0
+              ? `○ TA 的平均响应时长 ${moment.avgResponseMin} 分钟`
+              : '○ 新发布，暂无平均响应数据'}
           </div>
           <div>○ 接单后进入等待室开始履约</div>
         </div>

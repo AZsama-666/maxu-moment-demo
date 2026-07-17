@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { chatShortcuts, conversations } from '../data/appShellMock';
-import { usePendingAcceptOrders } from '../state/orderStore';
+import { useSupplyTasks } from '../state/supplyTasks';
 
 const filters = ['全部', '私聊', '群聊'] as const;
 type Filter = (typeof filters)[number];
 
 export function MessagesPage() {
   const [filter, setFilter] = useState<Filter>('全部');
-  const pendingAccept = usePendingAcceptOrders();
+  const supplyTasks = useSupplyTasks();
 
   const list = conversations.filter((c) => {
     if (filter === '私聊') return c.kind === 'private';
@@ -37,10 +37,10 @@ export function MessagesPage() {
         ))}
       </div>
 
-      {pendingAccept.length > 0 && (
-        <Link to="/profile/my-moments" className="feed-banner-signal" style={{ margin: '8px 0 0' }}>
+      {supplyTasks.total > 0 && (
+        <Link to="/profile/my-moments/tasks" className="feed-banner-signal" style={{ margin: '8px 0 0' }}>
           <span className="moment-signal-pill">待接单</span>
-          <span>你有 {pendingAccept.length} 笔尽快单待接单，点击处理</span>
+          <span>你有 {supplyTasks.total} 项供给任务待处理，点击查看</span>
         </Link>
       )}
 

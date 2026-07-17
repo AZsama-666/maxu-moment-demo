@@ -1,4 +1,5 @@
 export type InteractionForm = 'voice' | 'video';
+export type SkuType = InteractionForm | 'companion';
 
 export type Slot = {
   id: string;

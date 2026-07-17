@@ -11,7 +11,7 @@ import {
 import {
   getOpenSupplyMoments,
   getStaticMetricOverrides,
-  getSupplyListing,
+  getOneToOneSupplyListing,
 } from '../state/supplyStore';
 
 function enrichStatic(m: MomentItem): MomentItem {
@@ -31,7 +31,7 @@ export function listBrowseMoments(): MomentItem[] {
 }
 
 export function getMoment(id: string): MomentItem | undefined {
-  const fromSupply = getSupplyListing(id);
+  const fromSupply = getOneToOneSupplyListing(id);
   if (fromSupply) {
     const { status: _s, createdAt: _c, ...item } = fromSupply;
     return {

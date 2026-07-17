@@ -135,7 +135,9 @@ export function CheckoutPage() {
             >
               <span className="timing-card__name">尽快</span>
               <span className="timing-card__time">
-                平均响应时长 {avail.waitMin} 分钟内开始
+                {moment.avgResponseMin > 0
+                  ? `平均响应时长 ${avail.waitMin} 分钟内开始`
+                  : '新发布 · 付款后等待 TA 接单'}
               </span>
               <span className="timing-card__note">超时未接自动退</span>
             </button>
@@ -205,7 +207,9 @@ export function CheckoutPage() {
         <div>
           <div className="muted">
             {timing === 'asap' && avail.kind === 'now'
-              ? `尽快 · 平均响应时长 ${avail.waitMin} 分钟内开始`
+              ? moment.avgResponseMin > 0
+                ? `尽快 · 平均响应时长 ${avail.waitMin} 分钟内开始`
+                : '尽快 · 新发布'
               : slotId
                 ? `预约 · ${moment.slots.find((s) => s.id === slotId)?.label}`
                 : '预约 · 请选择时间'}

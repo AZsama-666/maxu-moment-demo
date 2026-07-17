@@ -26,7 +26,10 @@ export function MomentCard({ moment }: { moment: MomentItem }) {
           <strong>{provider.name}</strong>
           {provider.verified && <span className="badge">已认证</span>}
           <span className="moment-card__wait">
-            {avail.kind === 'now' && `平均响应时长${avail.waitMin}分钟`}
+            {avail.kind === 'now' &&
+              (moment.avgResponseMin > 0
+                ? `平均响应时长${avail.waitMin}分钟`
+                : '新发布')}
             {avail.kind === 'slot' && `最早 ${avail.earliestLabel}`}
             {avail.kind === 'full' && '已约满'}
           </span>

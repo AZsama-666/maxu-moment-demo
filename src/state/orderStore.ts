@@ -142,7 +142,10 @@ export function createPendingOrder(input: {
       title: moment.title,
       providerName: provider.name,
       providerId: moment.providerId,
-      slotLabel: `尽快（平均响应时长 ${waitMin} 分钟内开始）`,
+      slotLabel:
+        moment.avgResponseMin > 0
+          ? `尽快（平均响应时长 ${waitMin} 分钟内开始）`
+          : '尽快（新发布）',
       priceYuan,
       durationSec,
       quantity,

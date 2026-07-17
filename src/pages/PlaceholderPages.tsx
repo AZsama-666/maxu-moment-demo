@@ -41,8 +41,11 @@ export function PublishPage() {
       title="发布"
       message="发布用于发动态，不承接 Moment 配置。"
       extra={
-        <Link to="/profile/my-moments" className="btn btn--ghost btn--block">
-          去「我的 Moment」挂单
+        <Link
+          to="/profile/my-moments/launch/type"
+          className="btn btn--ghost btn--block"
+        >
+          发起自己的 Moment
         </Link>
       }
     />

@@ -1,11 +1,17 @@
 import { useSyncExternalStore } from 'react';
 import { getGroupListing } from '../data/marketMock';
+import {
+  getSupplyListing,
+  updateCompanionSupply,
+} from './supplyStore';
 
 export type GroupOrderStatus = 'awaiting_confirm' | 'completed';
 
 export type GroupOrder = {
   id: string;
   listingId: string;
+  supplyListingId?: string;
+  hostProviderId: string;
   title: string;
   hostName: string;
   priceYuan: number;
@@ -25,7 +31,12 @@ const listeners = new Set<() => void>();
 function load(): GroupOrder[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as GroupOrder[]) : [];
+    return raw
+      ? (JSON.parse(raw) as GroupOrder[]).map((order) => ({
+          ...order,
+          hostProviderId: order.hostProviderId ?? '',
+        }))
+      : [];
   } catch {
     return [];
   }
@@ -63,6 +74,8 @@ export function createGroupOrder(listingId: string): GroupOrder | null {
   const order: GroupOrder = {
     id: `go-${Date.now()}`,
     listingId: listing.id,
+    supplyListingId: listing.supplyListingId,
+    hostProviderId: listing.hostProviderId,
     title: listing.title,
     hostName: listing.hostName,
     priceYuan: listing.priceYuan,
@@ -74,6 +87,14 @@ export function createGroupOrder(listingId: string): GroupOrder | null {
     createdAt: Date.now(),
   };
   orders = [order, ...orders];
+  if (listing.supplyListingId) {
+    const supply = getSupplyListing(listing.supplyListingId);
+    if (supply?.kind === 'companion') {
+      updateCompanionSupply(supply.id, {
+        remaining: Math.max(0, supply.remaining - 1),
+      });
+    }
+  }
   emit();
   return order;
 }

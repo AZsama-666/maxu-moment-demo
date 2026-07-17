@@ -4,23 +4,55 @@ import {
   computeStatusLabel,
   type InteractionForm,
   type MomentItem,
+  type SkuType,
   type Slot,
 } from '../data/mock';
 
 export type SupplyStatus = 'open' | 'offline';
 
-export type SupplyListing = MomentItem & {
+export type OneToOneSupplyListing = MomentItem & {
+  kind: '1v1';
   status: SupplyStatus;
   createdAt: number;
 };
 
+export type CompanionSupplyListing = {
+  kind: 'companion';
+  id: string;
+  skuType: 'companion';
+  title: string;
+  providerId: string;
+  description: string;
+  priceYuan: number;
+  unitLabel: string;
+  serviceTime: string;
+  placeLabel: string;
+  seats: number;
+  remaining: number;
+  status: SupplyStatus;
+  createdAt: number;
+};
+
+export type SupplyListing = OneToOneSupplyListing | CompanionSupplyListing;
+
 export type CreateMomentInput = {
   form: InteractionForm;
   title: string;
+  description?: string;
   durationSec: number;
   priceYuan: number;
   slots: { label: string; remaining: number }[];
   asapEnabled: boolean;
+};
+
+export type CreateCompanionInput = {
+  title: string;
+  description: string;
+  priceYuan: number;
+  unitLabel: string;
+  serviceTime: string;
+  placeLabel: string;
+  seats: number;
 };
 
 export type UpdateSupplyInput = {
@@ -30,9 +62,15 @@ export type UpdateSupplyInput = {
   slots?: Slot[];
   priceYuan?: number;
   title?: string;
+  description?: string;
+  durationSec?: number;
 };
 
-const STORAGE_KEY = 'maxu-moment-demo-supply-v3';
+const STORAGE_KEY = 'maxu-moment-demo-supply-v4';
+const LEGACY_KEYS = [
+  'maxu-moment-demo-supply-v3',
+  'maxu-moment-demo-supply-v2',
+];
 
 type Snapshot = { listings: SupplyListing[] };
 
@@ -41,40 +79,50 @@ const listeners = new Set<() => void>();
 
 function load(): Snapshot {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      // migrate from v2 if present
-      const legacy = localStorage.getItem('maxu-moment-demo-supply-v2');
-      if (legacy) {
-        const listings = (JSON.parse(legacy) as Array<SupplyListing & { online?: boolean }>).map(
-          normalizeListing,
-        );
-        return { listings };
-      }
-      return { listings: [] };
+    const current = localStorage.getItem(STORAGE_KEY);
+    if (current) {
+      return {
+        listings: (JSON.parse(current) as SupplyListing[]).map(normalizeListing),
+      };
     }
-    return { listings: (JSON.parse(raw) as SupplyListing[]).map(normalizeListing) };
+
+    const legacyRaw = LEGACY_KEYS.map((key) => localStorage.getItem(key)).find(Boolean);
+    if (!legacyRaw) return { listings: [] };
+    const legacy = JSON.parse(legacyRaw) as SupplyListing[];
+    return { listings: legacy.map(normalizeListing) };
   } catch {
     return { listings: [] };
   }
 }
 
-function normalizeListing(l: SupplyListing & { online?: boolean }): SupplyListing {
+function normalizeListing(
+  listing: SupplyListing & { online?: boolean; kind?: '1v1' | 'companion' },
+): SupplyListing {
+  if (listing.kind === 'companion') {
+    return {
+      ...listing,
+      skuType: 'companion',
+      remaining: listing.remaining ?? listing.seats ?? 1,
+      status: listing.status ?? 'open',
+    };
+  }
+
+  const legacy = listing as OneToOneSupplyListing & { online?: boolean };
   const acceptingPaused =
-    l.acceptingPaused ??
-    (typeof l.online === 'boolean' ? !l.online : false);
+    legacy.acceptingPaused ??
+    (typeof legacy.online === 'boolean' ? !legacy.online : false);
   const base = {
-    ...l,
-    asapEnabled: l.asapEnabled ?? true,
+    ...legacy,
+    kind: '1v1' as const,
+    asapEnabled: legacy.asapEnabled ?? true,
     acceptingPaused,
-    fulfilledCount: l.fulfilledCount ?? 0,
-    avgResponseMin: l.avgResponseMin ?? 0,
-    slots: l.slots ?? [],
+    fulfilledCount: legacy.fulfilledCount ?? 0,
+    avgResponseMin: legacy.avgResponseMin ?? 0,
+    slots: legacy.slots ?? [],
+    status: legacy.status ?? 'open',
+    createdAt: legacy.createdAt ?? Date.now(),
   };
-  return {
-    ...base,
-    statusLabel: computeStatusLabel(base),
-  };
+  return { ...base, statusLabel: computeStatusLabel(base) };
 }
 
 function persist() {
@@ -83,7 +131,7 @@ function persist() {
 
 function emit() {
   persist();
-  listeners.forEach((l) => l());
+  listeners.forEach((listener) => listener());
 }
 
 function subscribe(listener: () => void) {
@@ -95,74 +143,77 @@ function getSnapshot() {
   return snapshot;
 }
 
-function toMomentItem(listing: SupplyListing): MomentItem {
-  const { status: _s, createdAt: _c, ...item } = listing;
+function toMomentItem(listing: OneToOneSupplyListing): MomentItem {
+  const { status: _status, createdAt: _createdAt, kind: _kind, ...item } = listing;
   return { ...item, statusLabel: computeStatusLabel(listing) };
 }
 
-/** 同 form 仅一条开放 SKU：若已有则更新，否则新建 */
-export function createSupplyMoment(input: CreateMomentInput): SupplyListing {
+export function createSupplyMoment(input: CreateMomentInput): OneToOneSupplyListing {
   const existing = snapshot.listings.find(
-    (l) => l.form === input.form && l.status === 'open',
+    (listing): listing is OneToOneSupplyListing =>
+      listing.kind === '1v1' && listing.form === input.form,
   );
-  const slots: Slot[] = input.slots.map((s, i) => ({
-    id: `${existing?.id ?? `m-self-${Date.now()}`}-s${i + 1}`,
-    label: s.label,
-    startAt: `slot-${i + 1}`,
-    remaining: s.remaining,
+  const id = existing?.id ?? `m-self-${Date.now()}`;
+  const slots: Slot[] = input.slots.map((slot, index) => ({
+    id: `${id}-s${index + 1}`,
+    label: slot.label,
+    startAt: `slot-${index + 1}`,
+    remaining: slot.remaining,
   }));
 
-  if (existing) {
-    const updated: SupplyListing = {
-      ...existing,
-      title: input.title.trim(),
-      durationSec: input.durationSec,
-      priceYuan: input.priceYuan,
-      slots: slots.length > 0 ? slots : existing.slots,
-      asapEnabled: input.asapEnabled,
-      acceptingPaused: false,
-      statusLabel: computeStatusLabel({
-        asapEnabled: input.asapEnabled,
-        acceptingPaused: false,
-        slots: slots.length > 0 ? slots : existing.slots,
-        avgResponseMin: existing.avgResponseMin,
-      }),
-    };
-    snapshot = {
-      listings: snapshot.listings.map((l) => (l.id === existing.id ? updated : l)),
-    };
-    emit();
-    return updated;
-  }
-
-  const id = `m-self-${Date.now()}`;
-  const listing: SupplyListing = {
+  const listing: OneToOneSupplyListing = {
+    kind: '1v1',
     id,
     title: input.title.trim(),
     providerId: SELF_PROVIDER_ID,
     form: input.form,
     sceneTag: input.form === 'voice' ? '语音互动' : '视频互动',
     description:
-      input.form === 'voice'
-        ? '长期开放的语音专属时刻，支持尽快接单或预约档期。'
-        : '长期开放的视频专属时刻，支持尽快接单或预约档期。',
+      input.description?.trim() ||
+      (input.form === 'voice'
+        ? '长期开放的语音专属时刻，支持实时接单或预约档期。'
+        : '长期开放的视频专属时刻，支持实时接单或预约档期。'),
     durationSec: input.durationSec,
     priceYuan: input.priceYuan,
     slots,
     asapEnabled: input.asapEnabled,
     acceptingPaused: false,
-    fulfilledCount: 0,
-    avgResponseMin: 0,
-    statusLabel: computeStatusLabel({
-      asapEnabled: input.asapEnabled,
-      acceptingPaused: false,
-      slots,
-      avgResponseMin: 0,
-    }),
+    fulfilledCount: existing?.fulfilledCount ?? 0,
+    avgResponseMin: existing?.avgResponseMin ?? 0,
+    statusLabel: '',
+    status: existing?.status ?? 'open',
+    createdAt: existing?.createdAt ?? Date.now(),
+  };
+  listing.statusLabel = computeStatusLabel(listing);
+
+  snapshot = {
+    listings: existing
+      ? snapshot.listings.map((item) => (item.id === existing.id ? listing : item))
+      : [listing, ...snapshot.listings],
+  };
+  emit();
+  return listing;
+}
+
+export function createCompanionSupply(
+  input: CreateCompanionInput,
+): CompanionSupplyListing {
+  const listing: CompanionSupplyListing = {
+    kind: 'companion',
+    skuType: 'companion',
+    id: `c-self-${Date.now()}`,
+    title: input.title.trim(),
+    providerId: SELF_PROVIDER_ID,
+    description: input.description.trim(),
+    priceYuan: input.priceYuan,
+    unitLabel: input.unitLabel.trim() || '1 小时/份',
+    serviceTime: input.serviceTime.trim(),
+    placeLabel: input.placeLabel.trim(),
+    seats: input.seats,
+    remaining: input.seats,
     status: 'open',
     createdAt: Date.now(),
   };
-
   snapshot = { listings: [listing, ...snapshot.listings] };
   emit();
   return listing;
@@ -170,41 +221,60 @@ export function createSupplyMoment(input: CreateMomentInput): SupplyListing {
 
 export function updateSupplyMoment(id: string, patch: UpdateSupplyInput) {
   snapshot = {
-    listings: snapshot.listings.map((l) => {
-      if (l.id !== id) return l;
-      const next = { ...l, ...patch };
-      if (patch.status === 'offline') {
-        next.acceptingPaused = true;
-      }
+    listings: snapshot.listings.map((listing) => {
+      if (listing.id !== id || listing.kind !== '1v1') return listing;
+      const next = { ...listing, ...patch };
+      if (patch.status === 'offline') next.acceptingPaused = true;
+      if (patch.status === 'open' && !next.asapEnabled) next.acceptingPaused = false;
       next.statusLabel = computeStatusLabel(next);
-      if (patch.status) next.status = patch.status;
       return next;
     }),
   };
   emit();
 }
 
+export function updateCompanionSupply(
+  id: string,
+  patch: Partial<Omit<CompanionSupplyListing, 'id' | 'kind' | 'skuType' | 'createdAt'>>,
+) {
+  snapshot = {
+    listings: snapshot.listings.map((listing) =>
+      listing.id === id && listing.kind === 'companion'
+        ? { ...listing, ...patch }
+        : listing,
+    ),
+  };
+  emit();
+}
+
 export function setSupplyStatus(id: string, status: SupplyStatus) {
-  updateSupplyMoment(id, {
-    status,
-    acceptingPaused: status !== 'open',
-  });
+  const listing = getSupplyListing(id);
+  if (!listing) return;
+  if (listing.kind === '1v1') {
+    updateSupplyMoment(id, {
+      status,
+      acceptingPaused: status === 'offline',
+    });
+  } else {
+    updateCompanionSupply(id, { status });
+  }
 }
 
 export function recordSupplyResponse(momentId: string, responseMin: number) {
   snapshot = {
-    listings: snapshot.listings.map((l) => {
-      if (l.id !== momentId) return l;
-      const nextCount = l.fulfilledCount + 1;
-      const prevTotal = l.avgResponseMin * l.fulfilledCount;
-      const avgResponseMin =
-        nextCount === 0 ? responseMin : Math.round((prevTotal + responseMin) / nextCount);
-      return {
-        ...l,
+    listings: snapshot.listings.map((listing) => {
+      if (listing.id !== momentId || listing.kind !== '1v1') return listing;
+      const nextCount = listing.fulfilledCount + 1;
+      const previousTotal = listing.avgResponseMin * listing.fulfilledCount;
+      const avgResponseMin = Math.round(
+        (previousTotal + responseMin) / Math.max(1, nextCount),
+      );
+      const next = {
+        ...listing,
         fulfilledCount: nextCount,
         avgResponseMin: Math.max(1, avgResponseMin),
-        statusLabel: computeStatusLabel(l),
       };
+      return { ...next, statusLabel: computeStatusLabel(next) };
     }),
   };
   emit();
@@ -224,14 +294,16 @@ export function getStaticMetricOverrides(momentId: string) {
 
 export function recordStaticResponse(
   momentId: string,
-  base: { fulfilledCount: number; avgResponseMin: number; acceptingPaused: boolean },
+  base: StaticMetric,
   responseMin: number,
 ) {
-  const cur = staticMetrics[momentId] ?? { ...base };
-  const nextCount = cur.fulfilledCount + 1;
-  const avg = Math.round((cur.avgResponseMin * cur.fulfilledCount + responseMin) / nextCount);
+  const current = staticMetrics[momentId] ?? { ...base };
+  const nextCount = current.fulfilledCount + 1;
+  const avg = Math.round(
+    (current.avgResponseMin * current.fulfilledCount + responseMin) / nextCount,
+  );
   staticMetrics[momentId] = {
-    ...cur,
+    ...current,
     fulfilledCount: nextCount,
     avgResponseMin: Math.max(1, avg),
   };
@@ -243,25 +315,62 @@ export function setStaticPaused(
   acceptingPaused: boolean,
   base: { fulfilledCount: number; avgResponseMin: number },
 ) {
-  const cur = staticMetrics[momentId] ?? { ...base, acceptingPaused };
-  staticMetrics[momentId] = { ...cur, acceptingPaused };
+  const current = staticMetrics[momentId] ?? { ...base, acceptingPaused };
+  staticMetrics[momentId] = { ...current, acceptingPaused };
   emit();
 }
 
 export function getSupplyListing(id: string) {
-  return snapshot.listings.find((l) => l.id === id);
+  return snapshot.listings.find((listing) => listing.id === id);
 }
 
-export function getOpenListingByForm(form: InteractionForm): SupplyListing | undefined {
-  return snapshot.listings.find((l) => l.form === form && l.status === 'open');
+export function getOneToOneSupplyListing(id: string) {
+  const listing = getSupplyListing(id);
+  return listing?.kind === '1v1' ? listing : undefined;
+}
+
+export function getOpenListingByForm(form: InteractionForm) {
+  return snapshot.listings.find(
+    (listing): listing is OneToOneSupplyListing =>
+      listing.kind === '1v1' &&
+      listing.form === form &&
+      listing.status === 'open',
+  );
+}
+
+export function getListingBySkuType(skuType: SkuType) {
+  if (skuType === 'companion') {
+    return snapshot.listings.filter(
+      (listing): listing is CompanionSupplyListing =>
+        listing.kind === 'companion',
+    );
+  }
+  return snapshot.listings.find(
+    (listing): listing is OneToOneSupplyListing =>
+      listing.kind === '1v1' && listing.form === skuType,
+  );
 }
 
 export function getOpenSupplyMoments(): MomentItem[] {
-  return snapshot.listings.filter((l) => l.status === 'open').map(toMomentItem);
+  return snapshot.listings
+    .filter(
+      (listing): listing is OneToOneSupplyListing =>
+        listing.kind === '1v1' && listing.status === 'open',
+    )
+    .map(toMomentItem);
+}
+
+export function getOpenCompanionListings(): CompanionSupplyListing[] {
+  return snapshot.listings.filter(
+    (listing): listing is CompanionSupplyListing =>
+      listing.kind === 'companion' && listing.status === 'open',
+  );
 }
 
 export function hasOpenSupplyMoments() {
-  return snapshot.listings.some((l) => l.status === 'open');
+  return snapshot.listings.some(
+    (listing) => listing.kind === '1v1' && listing.status === 'open',
+  );
 }
 
 export function useSupplyListings() {
@@ -270,7 +379,12 @@ export function useSupplyListings() {
 
 export function useOpenSupplyMoments(): MomentItem[] {
   const listings = useSupplyListings();
-  return listings.filter((l) => l.status === 'open').map(toMomentItem);
+  return listings
+    .filter(
+      (listing): listing is OneToOneSupplyListing =>
+        listing.kind === '1v1' && listing.status === 'open',
+    )
+    .map(toMomentItem);
 }
 
 export function useSupplyTick() {
