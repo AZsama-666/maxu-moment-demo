@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/PageHeader';
 import { confirmGroupOrderSide } from '../state/groupOrderStore';
-import { acceptOrder, statusLabel, timingLabel } from '../state/orderStore';
+import { acceptOrder, ASAP_SLA_MIN, statusLabel, timingLabel } from '../state/orderStore';
 import { useSupplyTasks } from '../state/supplyTasks';
 
 export function SupplyTasksPage() {
@@ -27,7 +27,7 @@ export function SupplyTasksPage() {
               <h3 className="section__title">
                 待接实时订单 · {tasks.pendingAccept.length}
               </h3>
-              <p className="section__desc">请在买家付款后 2 分钟内处理。</p>
+              <p className="section__desc">请在买家付款后 {ASAP_SLA_MIN} 分钟内处理。</p>
               <div className="stack">
                 {tasks.pendingAccept.map((order) => (
                   <article key={order.id} className="task-card task-card--urgent">

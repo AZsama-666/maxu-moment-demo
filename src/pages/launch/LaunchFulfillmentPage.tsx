@@ -8,6 +8,7 @@ import {
   useLaunchDraft,
   type DraftSlot,
 } from '../../state/launchDraftStore';
+import { ASAP_SLA_MIN } from '../../state/orderStore';
 
 const validTypes: SkuType[] = ['voice', 'video', 'companion'];
 
@@ -73,7 +74,7 @@ export function LaunchFulfillmentPage() {
             <label className="toggle-row">
               <span>
                 <strong>允许买家发起尽快单</strong>
-                <small>收到订单后需在 2 分钟内接单</small>
+                <small>收到订单后需在 {ASAP_SLA_MIN} 分钟内接单</small>
               </span>
               <input
                 type="checkbox"
@@ -84,7 +85,7 @@ export function LaunchFulfillmentPage() {
               />
             </label>
             <p className="muted">
-              超时未接，系统会自动向买家退款。发布后可以随时暂停或恢复实时接单。
+              超时未接，系统会在 {ASAP_SLA_MIN} 分钟内自动向买家退款。发布后可以随时暂停或恢复实时接单。
             </p>
           </section>
 

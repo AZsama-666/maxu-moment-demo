@@ -4,6 +4,7 @@ import { PageHeader } from '../components/PageHeader';
 import { getMoment } from '../data/catalog';
 import {
   acceptOrder,
+  ASAP_SLA_MIN,
   pendingAcceptRemainSec,
   refundOrder,
   statusLabel,
@@ -127,7 +128,7 @@ export function PendingAcceptPage() {
 
         <div className="countdown">{fmt(shown)}</div>
         <div className="rules-bar" style={{ textAlign: 'left', marginTop: 8 }}>
-          尽快单付款后 2 分钟未接单，自动全额退款
+          尽快单付款后 {ASAP_SLA_MIN} 分钟内未接单，自动全额退款
         </div>
 
         <div className="checklist">

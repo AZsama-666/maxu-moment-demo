@@ -1,6 +1,7 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { PageHeader } from '../components/PageHeader';
 import { loadListingIntoDraft } from '../state/launchDraftStore';
+import { ASAP_SLA_MIN } from '../state/orderStore';
 import {
   getSupplyListing,
   setSupplyStatus,
@@ -61,7 +62,7 @@ export function SupplyManagePage() {
               <small>
                 {listing.acceptingPaused
                   ? '预约档期仍可被购买'
-                  : '收到尽快单后需在 2 分钟内响应'}
+                  : `收到尽快单后需在 ${ASAP_SLA_MIN} 分钟内响应`}
               </small>
             </span>
             <button

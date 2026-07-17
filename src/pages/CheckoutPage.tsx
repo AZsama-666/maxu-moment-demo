@@ -4,6 +4,7 @@ import { PageHeader } from '../components/PageHeader';
 import { getMoment, getProvider } from '../data/catalog';
 import { ASAP_SLOT_ID, buyerAvailability } from '../data/mock';
 import {
+  ASAP_SLA_MIN,
   createPendingOrder,
   getRemaining,
   MAX_ORDER_QTY,
@@ -121,7 +122,7 @@ export function CheckoutPage() {
       </div>
 
       {canAsap && timing === 'asap' && (
-        <div className="rules-bar">尽快单付款后 2 分钟未接单，自动全额退款</div>
+        <div className="rules-bar">尽快单付款后 {ASAP_SLA_MIN} 分钟内未接单，自动全额退款</div>
       )}
 
       <section className="section">

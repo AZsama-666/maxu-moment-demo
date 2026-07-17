@@ -19,8 +19,9 @@ export type OrderStatus =
 export type PayMethod = 'cash' | 'coin';
 export type FulfillTiming = 'asap' | 'scheduled';
 
-/** 尽快单接单 SLA（秒），演示用 2 分钟 */
-export const ASAP_SLA_SEC = 120;
+/** 尽快单接单 SLA（秒）：超时未接自动退款 */
+export const ASAP_SLA_SEC = 30 * 60;
+export const ASAP_SLA_MIN = ASAP_SLA_SEC / 60;
 
 export type Order = {
   id: string;

@@ -2,7 +2,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { PageHeader } from '../components/PageHeader';
 import { getMoment, getProvider } from '../data/catalog';
 import { buyerAvailability } from '../data/mock';
-import { useOrders } from '../state/orderStore';
+import { ASAP_SLA_MIN, useOrders } from '../state/orderStore';
 import { useSupplyTick } from '../state/supplyStore';
 
 export function DetailPage() {
@@ -77,7 +77,7 @@ export function DetailPage() {
                   : '尽快 · 新发布'}
               </strong>
               <br />
-              <span className="muted">付款后超时未接自动退款</span>
+              <span className="muted">付款后 {ASAP_SLA_MIN} 分钟内未接自动退款</span>
             </p>
           )}
           {avail.kind === 'slot' && (
@@ -97,7 +97,7 @@ export function DetailPage() {
       <section className="section">
         <h3 className="section__title">履约须知</h3>
         <ul className="rules">
-          <li>尽快：付款后等待对方接单，超时自动退款。</li>
+          <li>尽快：付款后等待对方接单，{ASAP_SLA_MIN} 分钟内未接自动退款。</li>
           <li>预约：购买即锁定所选时间，到点进等待室。</li>
           <li>本 Demo 为网页模拟，不产生真实扣款与通话。</li>
         </ul>

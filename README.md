@@ -23,27 +23,23 @@ npm run dev
 
 ## 构建与部署（up9.life）
 
-默认按子路径 **`/moment/`** 构建：
+默认部署到域名根路径 **`https://up9.life/`**：
 
 ```bash
 npm run build
 ```
 
-产物在 `dist/`。将 `dist` 内文件上传到站点的 `/moment/` 目录，访问：
+产物在 `dist/`。仓库已配置 GitHub Actions，推送到 `main` 会自动发布。
 
-`https://up9.life/moment/`
-
-若挂在域名根路径：
+若需挂到子路径 `/moment/`：
 
 ```bash
 # Windows PowerShell
-$env:VITE_BASE="/"; npm run build
+$env:VITE_BASE="/moment/"; npm run build
 
 # macOS / Linux
-VITE_BASE=/ npm run build
+VITE_BASE=/moment/ npm run build
 ```
-
-需要服务器对 SPA 做 fallback（未知路径回 `index.html`），或仅通过首页内链浏览。
 
 ## 说明
 

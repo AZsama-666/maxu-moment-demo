@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { PageHeader } from '../components/PageHeader';
 import { isAcceptingNow } from '../data/mock';
+import { ASAP_SLA_MIN } from '../state/orderStore';
 import { useSupplyTasks } from '../state/supplyTasks';
 import {
   useSupplyListings,
@@ -120,7 +121,7 @@ function SupplySkuCard({
   } else if (listing.kind === 'companion') {
     stateText = `${listing.serviceTime} · ${listing.placeLabel} · 剩 ${listing.remaining} 席`;
   } else if (isAcceptingNow(listing)) {
-    stateText = '正在接实时订单，收到后请在 2 分钟内响应';
+    stateText = `正在接实时订单，收到后请在 ${ASAP_SLA_MIN} 分钟内响应`;
   } else if (listing.asapEnabled && listing.acceptingPaused) {
     stateText =
       listing.slots.length > 0
