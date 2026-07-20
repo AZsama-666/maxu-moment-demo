@@ -1,14 +1,16 @@
 import { Link, Navigate, useParams } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { PageHeader } from '../components/PageHeader';
-import { getProvider, listBrowseMoments, listMomentsByProvider } from '../data/catalog';
-import { GroupCard, TransferCard } from '../components/MarketCards';
+import { getProvider, listMomentsByProvider } from '../data/catalog';
+import { GroupCard, PersonCard, TransferCard } from '../components/MarketCards';
 import { MomentCard } from '../components/MomentCard';
 import {
-  groupListings,
+  filterMarketItems,
+  listGroupsByProvider,
+  listMarketItems,
   transferListings,
 } from '../data/marketMock';
-import { categories, type CategoryKey } from '../data/mock';
+import { categories, providerHeroUrl, type CategoryKey } from '../data/mock';
 import { useOpenSupplyMoments } from '../state/supplyStore';
 
 export function PlaceholderPage({
@@ -25,7 +27,7 @@ export function PlaceholderPage({
       <PageHeader title={title} backTo="/" />
       <div className="soft-card soft-card--static">
         <p>{message}</p>
-        <p className="muted">本 Demo 跑通市集混排：1V1 平台履约、组局线下确认交割、转约占位。</p>
+        <p className="muted">本 Demo 跑通市集混排：按人进入后选择 SKU。</p>
         {extra}
         <Link to="/" className="btn btn--primary btn--block">
           回到 Moment
@@ -62,38 +64,7 @@ export function CategoryPage() {
 
   const cat = categories.find((c) => c.key === key);
   if (!cat) {
-    return (
-      <PlaceholderPage title="分类" message="未找到该分类。" />
-    );
-  }
-
-  if (key === '1v1') {
-    const list = listBrowseMoments();
-    return (
-      <div className="page">
-        <PageHeader title="1V1" backTo="/" />
-        <p className="section__desc">平台履约 · 尽快 / 预约档期</p>
-        <div className="stack">
-          {list.map((m) => (
-            <MomentCard key={m.id} moment={m} />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (key === 'group') {
-    return (
-      <div className="page">
-        <PageHeader title="组局 / 陪玩" backTo="/" />
-        <p className="section__desc">线下履约 · 双方确认收货交割</p>
-        <div className="stack">
-          {groupListings.map((g) => (
-            <GroupCard key={g.id} listing={g} />
-          ))}
-        </div>
-      </div>
-    );
+    return <PlaceholderPage title="分类" message="未找到该分类。" />;
   }
 
   if (key === 'transfer') {
@@ -110,12 +81,26 @@ export function CategoryPage() {
     );
   }
 
-  void (key as CategoryKey);
+  const people = filterMarketItems(listMarketItems(), key as CategoryKey, false).filter(
+    (item) => item.kind === 'person',
+  );
+
   return (
-    <PlaceholderPage
-      title={cat.label}
-      message={`${cat.hint}：网页 Demo 暂未开放。`}
-    />
+    <div className="page">
+      <PageHeader title={cat.label} backTo="/" />
+      <p className="section__desc">{cat.hint} · 先选人，再选具体 Moment</p>
+      <div className="stack">
+        {people.length === 0 ? (
+          <p className="empty">该分类暂无供给</p>
+        ) : (
+          people.map((p) =>
+            p.kind === 'person' ? (
+              <PersonCard key={p.providerId} person={p} />
+            ) : null,
+          )
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -123,38 +108,91 @@ export function TaMomentPage() {
   useOpenSupplyMoments();
   const { providerId = '' } = useParams();
   const provider = getProvider(providerId);
-  const list = listMomentsByProvider(providerId);
+  const moments = listMomentsByProvider(providerId);
+  const groups = listGroupsByProvider(providerId);
 
   if (!provider) {
     return (
       <div className="page">
-        <PageHeader title="TA 的 Moment" backTo="/feed" />
+        <PageHeader title="TA 的 Moment" backTo="/" />
         <p className="empty">用户不存在</p>
       </div>
     );
   }
 
+  const hasAny = moments.length > 0 || groups.length > 0;
+  const heroUrl = providerHeroUrl(provider);
+
   return (
-    <div className="page">
-      <PageHeader title="TA 的 Moment" backTo="/feed" />
-      <div className="detail-hero">
-        <div className="avatar avatar--lg" style={{ background: provider.avatarColor }}>
-          {provider.name.slice(0, 1)}
-        </div>
-        <div>
-          <strong>{provider.name}</strong>
-          {provider.verified && <span className="badge">已认证</span>}
-          <p className="muted">{provider.bio}</p>
-          <p className="pill">{list.length > 0 ? '开放中' : '暂无档期'}</p>
+    <div className="page page--detail">
+      <div
+        className="detail-cover"
+        style={
+          heroUrl
+            ? undefined
+            : {
+                background: `linear-gradient(165deg, ${provider.avatarColor} 0%, ${provider.avatarColor}b8 38%, #0f172a 100%)`,
+              }
+        }
+      >
+        {heroUrl && (
+          <img className="detail-cover__img" src={heroUrl} alt="" />
+        )}
+        <Link to="/" className="detail-cover__back" aria-label="返回">
+          ‹
+        </Link>
+        <div className="detail-cover__shade" aria-hidden />
+        {!heroUrl && (
+          <div className="detail-cover__letter" aria-hidden>
+            {provider.name.slice(0, 1)}
+          </div>
+        )}
+        <div className="detail-cover__info">
+          <div className="detail-cover__name-row">
+            <strong>{provider.name}</strong>
+            {provider.verified && (
+              <span className="badge badge--on-dark">已认证</span>
+            )}
+          </div>
+          <p className="detail-cover__bio">{provider.bio}</p>
+          <div className="detail-cover__stats">
+            <span>
+              {hasAny
+                ? `${moments.length + groups.length} 个可约 Moment`
+                : '暂无开放'}
+            </span>
+          </div>
         </div>
       </div>
-      <h3 className="section__title">当前开放</h3>
-      <div className="stack">
-        {list.length === 0 ? (
-          <p className="empty">暂无开放的 Moment</p>
-        ) : (
-          list.map((m) => <MomentCard key={m.id} moment={m} />)
+
+      <div className="detail-body">
+        <p className="section__desc" style={{ marginTop: 0 }}>
+          选择一种 Moment 继续
+        </p>
+
+        {moments.length > 0 && (
+          <section className="section">
+            <h3 className="section__title">1V1</h3>
+            <div className="stack">
+              {moments.map((m) => (
+                <MomentCard key={m.id} moment={m} />
+              ))}
+            </div>
+          </section>
         )}
+
+        {groups.length > 0 && (
+          <section className="section">
+            <h3 className="section__title">组局 / 陪玩</h3>
+            <div className="stack">
+              {groups.map((g) => (
+                <GroupCard key={g.id} listing={g} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {!hasAny && <p className="empty">暂无开放的 Moment</p>}
       </div>
     </div>
   );

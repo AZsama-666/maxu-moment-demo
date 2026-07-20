@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { GroupCard, TransferCard } from '../components/MarketCards';
-import { MomentCard } from '../components/MomentCard';
+import { PersonCard, TransferCard } from '../components/MarketCards';
 import {
   filterMarketItems,
   listMarketItems,
@@ -63,11 +62,8 @@ export function HomePage() {
       ) : (
         <div className="stack">
           {visible.map((item) => {
-            if (item.kind === '1v1') {
-              return <MomentCard key={item.moment.id} moment={item.moment} />;
-            }
-            if (item.kind === 'group') {
-              return <GroupCard key={item.id} listing={item} />;
+            if (item.kind === 'person') {
+              return <PersonCard key={item.providerId} person={item} />;
             }
             return <TransferCard key={item.id} listing={item} />;
           })}

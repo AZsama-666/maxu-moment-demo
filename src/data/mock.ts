@@ -12,6 +12,10 @@ export type Provider = {
   id: string;
   name: string;
   avatarColor: string;
+  /** 市集列表小头像 */
+  avatarUrl?: string;
+  /** 点进 TA / 详情页的大头像；无则回退 avatarUrl */
+  coverUrl?: string;
   verified: boolean;
   bio: string;
 };
@@ -57,15 +61,36 @@ export const providers: Provider[] = [
     id: 'p-aurora',
     name: 'Aurora',
     avatarColor: '#3DB8A0',
+    avatarUrl: '/avatars/aurora.png',
+    coverUrl: '/avatars/aurora-cover.png',
     verified: true,
-    bio: '专注短时语音互动，准时履约。',
+    bio: '语音与视频专属时刻都开放，准时履约。',
   },
   {
     id: 'p-nova',
     name: 'Nova',
     avatarColor: '#4A7FD4',
+    avatarUrl: '/avatars/nova.png',
+    coverUrl: '/avatars/nova-cover.png',
     verified: true,
     bio: '短视频专属互动，档期清晰可约。',
+  },
+  {
+    id: 'p-azhe',
+    name: '阿哲',
+    avatarColor: '#E8A05A',
+    avatarUrl: '/avatars/azhe.png',
+    verified: true,
+    bio: '线下组局组织者，到场双方确认交割。',
+  },
+  {
+    id: 'p-kira',
+    name: 'Kira',
+    avatarColor: '#7B6CF6',
+    avatarUrl: '/avatars/kira.png',
+    coverUrl: '/avatars/kira-cover.png',
+    verified: true,
+    bio: '陪玩上分，结束后双方确认交割。',
   },
   {
     id: SELF_PROVIDER_ID,
@@ -75,6 +100,13 @@ export const providers: Provider[] = [
     bio: '在 MAXU 记录生活，也开放自己的专属时刻。',
   },
 ];
+
+/** 点进去用的大图：优先 cover，否则列表头像 */
+export function providerHeroUrl(
+  provider: Pick<Provider, 'coverUrl' | 'avatarUrl'>,
+): string | undefined {
+  return provider.coverUrl || provider.avatarUrl;
+}
 
 /** 当前是否在接 ASAP（派生，供给内部用） */
 export function isAcceptingNow(m: Pick<MomentItem, 'asapEnabled' | 'acceptingPaused'>): boolean {
@@ -127,6 +159,26 @@ export const moments: MomentItem[] = [
       { id: 'sv-1', label: '今天 20:00', startAt: 'today-20:00', remaining: 5 },
       { id: 'sv-2', label: '今天 21:00', startAt: 'today-21:00', remaining: 3 },
       { id: 'sv-3', label: '明天 19:30', startAt: 'tomorrow-19:30', remaining: 8 },
+    ],
+  },
+  {
+    id: 'm-aurora-video-60',
+    title: '60 秒视频专属时刻',
+    providerId: 'p-aurora',
+    form: 'video',
+    sceneTag: '视频互动',
+    description: 'Aurora 的视频专属时刻，可尽快接单，也可预约档期。',
+    durationSec: 60,
+    priceYuan: 19.9,
+    statusLabel: '尽快·平均响应时长4分钟',
+    asapEnabled: true,
+    acceptingPaused: false,
+    fulfilledCount: 64,
+    avgResponseMin: 4,
+    slots: [
+      { id: 'av-1', label: '今天 20:30', startAt: 'today-20:30', remaining: 4 },
+      { id: 'av-2', label: '今天 22:00', startAt: 'today-22:00', remaining: 2 },
+      { id: 'av-3', label: '明天 20:00', startAt: 'tomorrow-20:00', remaining: 6 },
     ],
   },
   {

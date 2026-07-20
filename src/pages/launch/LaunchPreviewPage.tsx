@@ -88,7 +88,16 @@ export function LaunchPreviewPage() {
       <p className="section__desc">这是买家在市集里会看到的内容。</p>
 
       <div className="moment-card launch-preview-card">
-        <div className="avatar" style={{ background: '#4ADCC4' }}>玛</div>
+        <div
+          className="moment-card__cover"
+          style={{
+            background:
+              'linear-gradient(160deg, #4ADCC4 0%, #4ADCC4cc 45%, #1a2332 100%)',
+          }}
+          aria-hidden
+        >
+          <span className="moment-card__cover-letter">玛</span>
+        </div>
         <div className="moment-card__body">
           <div className="moment-card__row">
             <strong>玛薯 7729</strong>
@@ -120,7 +129,7 @@ export function LaunchPreviewPage() {
             {isCompanion ? (
               <>
                 <span className="trust-chip">陪玩</span>
-                <span className="trust-chip muted-chip">双方确认交割</span>
+                <span className="trust-chip muted-chip">线下交割</span>
               </>
             ) : (
               <>

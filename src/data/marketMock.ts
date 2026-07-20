@@ -1,5 +1,10 @@
-import { listBrowseMoments } from './catalog';
-import { buyerAvailability, SELF_PROVIDER_ID, type CategoryKey, type MomentItem } from './mock';
+import { getProvider, listBrowseMoments } from './catalog';
+import {
+  buyerAvailability,
+  SELF_PROVIDER_ID,
+  type CategoryKey,
+  type MomentItem,
+} from './mock';
 import { getOpenCompanionListings } from '../state/supplyStore';
 
 export type MarketFilter = 'all' | CategoryKey;
@@ -12,6 +17,7 @@ export type GroupListing = {
   title: string;
   hostName: string;
   avatarColor: string;
+  avatarUrl?: string;
   sceneTag: string;
   whenLabel: string;
   placeLabel: string;
@@ -29,19 +35,36 @@ export type TransferListing = {
   statusLabel: string;
 };
 
-export type MarketItem =
-  | { kind: '1v1'; moment: MomentItem }
-  | GroupListing
-  | TransferListing;
+/** 市集主卡片：按人聚合，SKU 在 TA 页选择 */
+export type PersonListing = {
+  kind: 'person';
+  providerId: string;
+  name: string;
+  avatarColor: string;
+  avatarUrl?: string;
+  verified: boolean;
+  bio: string;
+  /** 开放能力标签，如 语音 / 视频 / 组局 / 陪玩 */
+  offerTags: string[];
+  hasAsap: boolean;
+  waitMin?: number;
+  earliestLabel?: string;
+  fromPriceYuan: number;
+  has1v1: boolean;
+  hasGroup: boolean;
+};
+
+export type MarketItem = PersonListing | TransferListing;
 
 export const groupListings: GroupListing[] = [
   {
     kind: 'group',
     id: 'g-boardgame',
-    hostProviderId: 'p-static-boardgame',
+    hostProviderId: 'p-azhe',
     title: '周末桌游局 · 狼人杀',
     hostName: '阿哲',
     avatarColor: '#E8A05A',
+    avatarUrl: '/avatars/azhe.png',
     sceneTag: '组局',
     whenLabel: '周六 19:30',
     placeLabel: '静安 · 桌游吧',
@@ -53,10 +76,11 @@ export const groupListings: GroupListing[] = [
   {
     kind: 'group',
     id: 'g-valorant',
-    hostProviderId: 'p-static-kira',
+    hostProviderId: 'p-kira',
     title: '瓦罗兰特上分陪玩',
     hostName: 'Kira',
     avatarColor: '#7B6CF6',
+    avatarUrl: '/avatars/kira.png',
     sceneTag: '陪玩',
     whenLabel: '今晚可约',
     placeLabel: '线上开黑',
@@ -80,7 +104,7 @@ export const transferListings: TransferListing[] = [
 
 function dynamicCompanionListings(): GroupListing[] {
   return getOpenCompanionListings().map((listing) => ({
-    kind: 'group',
+    kind: 'group' as const,
     id: listing.id,
     supplyListingId: listing.id,
     hostProviderId: SELF_PROVIDER_ID,
@@ -96,21 +120,95 @@ function dynamicCompanionListings(): GroupListing[] {
   }));
 }
 
+export function listAllGroupListings(): GroupListing[] {
+  return [...groupListings, ...dynamicCompanionListings()];
+}
+
 export function getGroupListing(id: string) {
-  return [...groupListings, ...dynamicCompanionListings()].find((g) => g.id === id);
+  return listAllGroupListings().find((g) => g.id === id);
 }
 
 export function getTransferListing(id: string) {
   return transferListings.find((t) => t.id === id);
 }
 
-/** 市集混排：1V1 + 组局 + 转约 */
+export function listGroupsByProvider(providerId: string): GroupListing[] {
+  return listAllGroupListings().filter((g) => g.hostProviderId === providerId);
+}
+
+function buildPersonListing(
+  providerId: string,
+  moments: MomentItem[],
+  groups: GroupListing[],
+): PersonListing | null {
+  const provider = getProvider(providerId);
+  if (!provider) return null;
+  if (moments.length === 0 && groups.length === 0) return null;
+
+  const offerTags: string[] = [];
+  if (moments.some((m) => m.form === 'voice')) offerTags.push('语音');
+  if (moments.some((m) => m.form === 'video')) offerTags.push('视频');
+  for (const g of groups) {
+    if (!offerTags.includes(g.sceneTag)) offerTags.push(g.sceneTag);
+  }
+
+  let hasAsap = false;
+  let waitMin: number | undefined;
+  let earliestLabel: string | undefined;
+  for (const m of moments) {
+    const av = buyerAvailability(m);
+    if (av.kind === 'now') {
+      hasAsap = true;
+      waitMin =
+        waitMin === undefined ? av.waitMin : Math.min(waitMin, av.waitMin);
+    } else if (av.kind === 'slot' && !earliestLabel) {
+      earliestLabel = av.earliestLabel;
+    }
+  }
+
+  const prices = [
+    ...moments.map((m) => m.priceYuan),
+    ...groups.map((g) => g.priceYuan),
+  ];
+  const fromPriceYuan = Math.min(...prices);
+
+  return {
+    kind: 'person',
+    providerId,
+    name: provider.name,
+    avatarColor: provider.avatarColor,
+    avatarUrl: provider.avatarUrl,
+    verified: provider.verified,
+    bio: provider.bio,
+    offerTags,
+    hasAsap,
+    waitMin,
+    earliestLabel,
+    fromPriceYuan,
+    has1v1: moments.length > 0,
+    hasGroup: groups.length > 0,
+  };
+}
+
+/** 市集按人聚合；转约单独占位 */
 export function listMarketItems(): MarketItem[] {
-  const ones: MarketItem[] = listBrowseMoments().map((moment) => ({
-    kind: '1v1' as const,
-    moment,
-  }));
-  return [...ones, ...groupListings, ...dynamicCompanionListings(), ...transferListings];
+  const moments = listBrowseMoments();
+  const groups = listAllGroupListings();
+  const ids = new Set<string>();
+  for (const m of moments) ids.add(m.providerId);
+  for (const g of groups) ids.add(g.hostProviderId);
+
+  const people: PersonListing[] = [];
+  for (const id of ids) {
+    const person = buildPersonListing(
+      id,
+      moments.filter((m) => m.providerId === id),
+      groups.filter((g) => g.hostProviderId === id),
+    );
+    if (person) people.push(person);
+  }
+
+  return [...people, ...transferListings];
 }
 
 export function filterMarketItems(
@@ -119,11 +217,13 @@ export function filterMarketItems(
   onlyNow: boolean,
 ): MarketItem[] {
   return items.filter((item) => {
-    if (category !== 'all' && item.kind !== category) return false;
-    if (onlyNow) {
-      if (item.kind !== '1v1') return false;
-      return buyerAvailability(item.moment).kind === 'now';
+    if (item.kind === 'transfer') {
+      return category === 'all' || category === 'transfer';
     }
+    if (category === '1v1' && !item.has1v1) return false;
+    if (category === 'group' && !item.hasGroup) return false;
+    if (category === 'transfer') return false;
+    if (onlyNow && !item.hasAsap) return false;
     return true;
   });
 }
@@ -131,20 +231,16 @@ export function filterMarketItems(
 export function sortMarketItems(items: MarketItem[]): MarketItem[] {
   return [...items].sort((a, b) => {
     const rank = (item: MarketItem) => {
-      if (item.kind === '1v1') {
-        const av = buyerAvailability(item.moment);
-        if (av.kind === 'now') return 0;
-        if (av.kind === 'slot') return 1;
-        return 2;
-      }
-      if (item.kind === 'group') return 1;
-      return 3;
+      if (item.kind === 'transfer') return 3;
+      if (item.hasAsap) return 0;
+      if (item.earliestLabel || item.hasGroup) return 1;
+      return 2;
     };
     const ra = rank(a);
     const rb = rank(b);
     if (ra !== rb) return ra - rb;
-    if (a.kind === '1v1' && b.kind === '1v1' && ra === 0) {
-      return (a.moment.avgResponseMin || 99) - (b.moment.avgResponseMin || 99);
+    if (a.kind === 'person' && b.kind === 'person' && ra === 0) {
+      return (a.waitMin ?? 99) - (b.waitMin ?? 99);
     }
     return 0;
   });

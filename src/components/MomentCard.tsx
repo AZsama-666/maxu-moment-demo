@@ -15,11 +15,25 @@ export function MomentCard({ moment }: { moment: MomentItem }) {
   return (
     <Link to={`/moment/${moment.id}`} className="moment-card">
       <div
-        className="avatar"
-        style={{ background: provider.avatarColor }}
+        className="moment-card__cover"
+        style={
+          provider.avatarUrl
+            ? undefined
+            : {
+                background: `linear-gradient(160deg, ${provider.avatarColor} 0%, ${provider.avatarColor}cc 45%, #1a2332 100%)`,
+              }
+        }
         aria-hidden
       >
-        {provider.name.slice(0, 1)}
+        {provider.avatarUrl ? (
+          <img
+            className="moment-card__cover-img"
+            src={provider.avatarUrl}
+            alt=""
+          />
+        ) : (
+          <span className="moment-card__cover-letter">{provider.name.slice(0, 1)}</span>
+        )}
       </div>
       <div className="moment-card__body">
         <div className="moment-card__row">
@@ -46,7 +60,9 @@ export function MomentCard({ moment }: { moment: MomentItem }) {
           <span className="trust-chip muted-chip">1V1</span>
           {avail.kind === 'now' && <span className="trust-chip">尽快</span>}
           {avail.kind === 'slot' && <span className="trust-chip">可预约</span>}
-          {avail.kind === 'full' && <span className="trust-chip muted-chip">已约满</span>}
+          {avail.kind === 'full' && (
+            <span className="trust-chip muted-chip">已约满</span>
+          )}
           <span className="trust-chip muted-chip">
             {moment.form === 'voice' ? '语音' : '视频'}
           </span>

@@ -1,7 +1,6 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { PageHeader } from '../components/PageHeader';
 import { getMoment, getProvider } from '../data/catalog';
-import { buyerAvailability } from '../data/mock';
+import { buyerAvailability, providerHeroUrl } from '../data/mock';
 import { ASAP_SLA_MIN, useOrders } from '../state/orderStore';
 import { useSupplyTick } from '../state/supplyStore';
 
@@ -15,7 +14,13 @@ export function DetailPage() {
   if (!moment) {
     return (
       <div className="page">
-        <PageHeader title="Moment 详情" backTo="/" />
+        <div className="page-header">
+          <Link to="/" className="page-header__back" aria-label="返回">
+            ‹
+          </Link>
+          <h1>Moment 详情</h1>
+          <span className="page-header__spacer" />
+        </div>
         <p className="empty">未找到该 Moment</p>
       </div>
     );
@@ -25,109 +30,132 @@ export function DetailPage() {
   if (!provider) {
     return (
       <div className="page">
-        <PageHeader title="Moment 详情" backTo="/" />
+        <div className="page-header">
+          <Link to="/" className="page-header__back" aria-label="返回">
+            ‹
+          </Link>
+          <h1>Moment 详情</h1>
+          <span className="page-header__spacer" />
+        </div>
         <p className="empty">供给方不存在</p>
       </div>
     );
   }
 
   const avail = buyerAvailability(moment);
+  const heroUrl = providerHeroUrl(provider);
 
   return (
-    <div className="page">
-      <PageHeader title="Moment 详情" backTo="/" />
-
-      <div className="detail-hero">
-        <div className="avatar avatar--lg" style={{ background: provider.avatarColor }}>
-          {provider.name.slice(0, 1)}
-        </div>
-        <div>
-          <div className="moment-card__row">
-            <strong>{provider.name}</strong>
-            {provider.verified && <span className="badge">已认证</span>}
+    <div className="page page--detail">
+      <div
+        className="detail-cover"
+        style={
+          heroUrl
+            ? undefined
+            : {
+                background: `linear-gradient(165deg, ${provider.avatarColor} 0%, ${provider.avatarColor}b8 38%, #0f172a 100%)`,
+              }
+        }
+      >
+        {heroUrl && (
+          <img className="detail-cover__img" src={heroUrl} alt="" />
+        )}
+        <Link to={`/ta/${provider.id}`} className="detail-cover__back" aria-label="返回">
+          ‹
+        </Link>
+        <div className="detail-cover__shade" aria-hidden />
+        {!heroUrl && (
+          <div className="detail-cover__letter" aria-hidden>
+            {provider.name.slice(0, 1)}
           </div>
-          <p className="muted">{provider.bio}</p>
-          <div className="moment-card__trust" style={{ marginTop: 6 }}>
-            <span className="trust-chip muted-chip">已履约 {moment.fulfilledCount}</span>
+        )}
+        <div className="detail-cover__info">
+          <div className="detail-cover__name-row">
+            <strong>{provider.name}</strong>
+            {provider.verified && <span className="badge badge--on-dark">已认证</span>}
+          </div>
+          <p className="detail-cover__bio">{provider.bio}</p>
+          <div className="detail-cover__stats">
+            <span>已履约 {moment.fulfilledCount}</span>
             {moment.avgResponseMin > 0 && (
-              <span className="trust-chip muted-chip">
-                平均响应时长 {moment.avgResponseMin} 分钟
-              </span>
+              <span>平均响应时长 {moment.avgResponseMin} 分钟</span>
             )}
           </div>
         </div>
       </div>
 
-      <h2 className="detail-title">{moment.title}</h2>
-      <div className="meta-row">
-        <span className="pill">{moment.sceneTag}</span>
-        <span>时长 {moment.durationSec} 秒</span>
-        <span>¥{moment.priceYuan.toFixed(1)}</span>
-      </div>
-      <p className="body-text">{moment.description}</p>
-
-      <section className="section">
-        <h3 className="section__title">可约情况</h3>
-        <div className="soft-card soft-card--static">
-          {avail.kind === 'now' && (
-            <p>
-              <strong>
-                {moment.avgResponseMin > 0
-                  ? `尽快 · 平均响应时长 ${avail.waitMin} 分钟内开始`
-                  : '尽快 · 新发布'}
-              </strong>
-              <br />
-              <span className="muted">付款后 {ASAP_SLA_MIN} 分钟内未接自动退款</span>
-            </p>
-          )}
-          {avail.kind === 'slot' && (
-            <p>
-              <strong>可预约 · 最早 {avail.earliestLabel}</strong>
-              <br />
-              <span className="muted">选好时间，到点履约</span>
-            </p>
-          )}
-          {avail.kind === 'now' && moment.slots.some((s) => s.remaining > 0) && (
-            <p className="muted">也可以预约档期，下单时选择时间</p>
-          )}
-          {avail.kind === 'full' && <p>已约满，晚点再来看看</p>}
+      <div className="detail-body">
+        <h2 className="detail-title">{moment.title}</h2>
+        <div className="meta-row">
+          <span className="pill">{moment.sceneTag}</span>
+          <span>时长 {moment.durationSec} 秒</span>
+          <span>¥{moment.priceYuan.toFixed(1)}</span>
         </div>
-      </section>
+        <p className="body-text">{moment.description}</p>
 
-      <section className="section">
-        <h3 className="section__title">履约须知</h3>
-        <ul className="rules">
-          <li>尽快：付款后等待对方接单，{ASAP_SLA_MIN} 分钟内未接自动退款。</li>
-          <li>预约：购买即锁定所选时间，到点进等待室。</li>
-          <li>本 Demo 为网页模拟，不产生真实扣款与通话。</li>
-        </ul>
-      </section>
-
-      <div className="bottom-cta">
-        <div>
-          <div className="muted">
-            {avail.kind === 'now' &&
-              (moment.avgResponseMin > 0
-                ? `平均响应时长 ${avail.waitMin} 分钟内开始`
-                : '新发布 · 等待 TA 接单')}
-            {avail.kind === 'slot' && `最早 ${avail.earliestLabel}`}
-            {avail.kind === 'full' && '已约满'}
+        <section className="section">
+          <h3 className="section__title">可约情况</h3>
+          <div className="soft-card soft-card--static">
+            {avail.kind === 'now' && (
+              <p>
+                <strong>
+                  {moment.avgResponseMin > 0
+                    ? `尽快 · 平均响应时长 ${avail.waitMin} 分钟内开始`
+                    : '尽快 · 新发布'}
+                </strong>
+                <br />
+                <span className="muted">付款后 {ASAP_SLA_MIN} 分钟内未接自动退款</span>
+              </p>
+            )}
+            {avail.kind === 'slot' && (
+              <p>
+                <strong>可预约 · 最早 {avail.earliestLabel}</strong>
+                <br />
+                <span className="muted">选好时间，到点履约</span>
+              </p>
+            )}
+            {avail.kind === 'now' && moment.slots.some((s) => s.remaining > 0) && (
+              <p className="muted">也可以预约档期，下单时选择时间</p>
+            )}
+            {avail.kind === 'full' && <p>已约满，晚点再来看看</p>}
           </div>
-          <strong>¥{moment.priceYuan.toFixed(1)}</strong>
-        </div>
-        <button
-          type="button"
-          className="btn btn--primary"
-          disabled={avail.kind === 'full'}
-          onClick={() => navigate(`/checkout/${moment.id}`)}
-        >
-          去下单
-        </button>
-      </div>
+        </section>
 
-      <p className="footer-note">
-        也可先去 <Link to={`/ta/${provider.id}`}>TA 的 Moment</Link> 查看主页。
-      </p>
+        <section className="section">
+          <h3 className="section__title">履约须知</h3>
+          <ul className="rules">
+            <li>尽快：付款后等待对方接单，{ASAP_SLA_MIN} 分钟内未接自动退款。</li>
+            <li>预约：购买即锁定所选时间，到点进等待室。</li>
+            <li>本 Demo 为网页模拟，不产生真实扣款与通话。</li>
+          </ul>
+        </section>
+
+        <div className="bottom-cta">
+          <div>
+            <div className="muted">
+              {avail.kind === 'now' &&
+                (moment.avgResponseMin > 0
+                  ? `平均响应时长 ${avail.waitMin} 分钟内开始`
+                  : '新发布 · 等待 TA 接单')}
+              {avail.kind === 'slot' && `最早 ${avail.earliestLabel}`}
+              {avail.kind === 'full' && '已约满'}
+            </div>
+            <strong>¥{moment.priceYuan.toFixed(1)}</strong>
+          </div>
+          <button
+            type="button"
+            className="btn btn--primary"
+            disabled={avail.kind === 'full'}
+            onClick={() => navigate(`/checkout/${moment.id}`)}
+          >
+            去下单
+          </button>
+        </div>
+
+        <p className="footer-note">
+          也可先去 <Link to={`/ta/${provider.id}`}>TA 的 Moment</Link> 查看主页。
+        </p>
+      </div>
     </div>
   );
 }
