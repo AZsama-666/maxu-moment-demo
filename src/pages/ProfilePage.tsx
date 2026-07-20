@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { myPosts, myProfile } from '../data/appShellMock';
 import { useOrders } from '../state/orderStore';
+import { resetDemoData } from '../state/resetDemoData';
 import { useSupplyTasks } from '../state/supplyTasks';
 
 const mainTabs = ['动态', '产品'] as const;
@@ -135,6 +136,21 @@ export function ProfilePage() {
           </p>
         </div>
       )}
+
+      <section className="section danger-zone profile-reset">
+        <p className="muted">清空本机订单、自建 Moment 与草稿，回到初始演示状态。</p>
+        <button
+          type="button"
+          className="btn btn--danger btn--block"
+          onClick={() => {
+            if (window.confirm('确认重置本机 Demo 数据？此操作不可撤销。')) {
+              resetDemoData();
+            }
+          }}
+        >
+          重置 Demo 数据
+        </button>
+      </section>
     </div>
   );
 }
