@@ -1624,6 +1624,10 @@ button:active:not(:disabled) {
   padding-bottom: 20px;
 }
 
+.profile-reset {
+  margin: 24px 16px 0;
+}
+
 .profile-banner {
   height: 140px;
   background: linear-gradient(135deg, #3fd0b6, #7ae5cf 55%, #b7f0e0);
