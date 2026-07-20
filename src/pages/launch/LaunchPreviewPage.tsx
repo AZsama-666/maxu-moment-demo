@@ -100,7 +100,7 @@ export function LaunchPreviewPage() {
         </div>
         <div className="moment-card__body">
           <div className="moment-card__row">
-            <strong>玛薯 7729</strong>
+            <strong>玛薯</strong>
             <span className="badge">已认证</span>
             <span className="moment-card__wait">
               {isCompanion

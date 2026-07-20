@@ -80,7 +80,7 @@ export const feedPosts: FeedPost[] = [
     title: '耳机里的白噪声，适合写一天的总结',
     coverGradient: 'linear-gradient(160deg, #9fd4c8, #4adcc4)',
     coverHeight: 185,
-    authorName: '玛薯 7729',
+    authorName: '玛薯',
     authorColor: '#4ADCC4',
     likeCount: 88,
     momentSignal: '开放中',
@@ -174,7 +174,7 @@ export const chatShortcuts = [
 ];
 
 export const myProfile = {
-  name: '玛薯 7729',
+  name: '玛薯',
   title: '初级探索者',
   bio: '在 MAXU 记录生活，也预约喜欢的专属时刻。',
   maxuId: '77291024',

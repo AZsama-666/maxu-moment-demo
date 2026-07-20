@@ -109,7 +109,7 @@ function dynamicCompanionListings(): GroupListing[] {
     supplyListingId: listing.id,
     hostProviderId: SELF_PROVIDER_ID,
     title: listing.title,
-    hostName: '玛薯 7729',
+    hostName: '玛薯',
     avatarColor: '#4ADCC4',
     sceneTag: '陪玩',
     whenLabel: listing.serviceTime,
@@ -190,10 +190,14 @@ function buildPersonListing(
   };
 }
 
-/** 市集按人聚合；转约单独占位 */
+/** 市集按人聚合；转约单独占位。不展示自有号（色块假人），市集只放真人供给。 */
 export function listMarketItems(): MarketItem[] {
-  const moments = listBrowseMoments();
-  const groups = listAllGroupListings();
+  const moments = listBrowseMoments().filter(
+    (m) => m.providerId !== SELF_PROVIDER_ID,
+  );
+  const groups = listAllGroupListings().filter(
+    (g) => g.hostProviderId !== SELF_PROVIDER_ID,
+  );
   const ids = new Set<string>();
   for (const m of moments) ids.add(m.providerId);
   for (const g of groups) ids.add(g.hostProviderId);

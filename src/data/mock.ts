@@ -94,7 +94,7 @@ export const providers: Provider[] = [
   },
   {
     id: SELF_PROVIDER_ID,
-    name: '玛薯 7729',
+    name: '玛薯',
     avatarColor: '#4ADCC4',
     verified: true,
     bio: '在 MAXU 记录生活，也开放自己的专属时刻。',
