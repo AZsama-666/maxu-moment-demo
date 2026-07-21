@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { updateOrderStatus, useOrder } from '../state/orderStore';
-import { getOrderPerspective, providerFulfillPath } from '../utils/orderPerspective';
+import { updateOrderStatus, useOrder } from '../../state/orderStore';
+import { getOrderPerspective } from '../../utils/orderPerspective';
 
-export function FulfillVoicePage() {
+export function SupplyFulfillVoicePage() {
   const { orderId = '' } = useParams();
   const order = useOrder(orderId);
   const navigate = useNavigate();
@@ -13,8 +13,8 @@ export function FulfillVoicePage() {
 
   useEffect(() => {
     if (!order) return;
-    if (getOrderPerspective(order) === 'provider') {
-      navigate(providerFulfillPath(order), { replace: true });
+    if (getOrderPerspective(order) !== 'provider') {
+      navigate(`/fulfill/voice/${order.id}`, { replace: true });
     }
   }, [order, navigate]);
 
@@ -33,7 +33,7 @@ export function FulfillVoicePage() {
           if (!finished.current) {
             finished.current = true;
             updateOrderStatus(order.id, 'completed');
-            navigate(`/done/${order.id}`, { replace: true });
+            navigate('/profile/my-moments/tasks', { replace: true });
           }
           return 0;
         }
@@ -44,36 +44,37 @@ export function FulfillVoicePage() {
   }, [order, navigate]);
 
   if (!order) {
-    return <div className="fulfill fulfill--voice"><p className="empty">订单不存在</p></div>;
+    return (
+      <div className="fulfill fulfill--voice">
+        <p className="empty">订单不存在</p>
+      </div>
+    );
   }
 
   const hangup = () => {
     if (finished.current) return;
     finished.current = true;
     updateOrderStatus(order.id, 'completed');
-    navigate(`/done/${order.id}`, { replace: true });
+    navigate('/profile/my-moments/tasks', { replace: true });
   };
 
   return (
     <div className="fulfill fulfill--voice">
-      <p className="fulfill__label">语音互动进行中</p>
-      <div className="avatar avatar--xxl" style={{ background: '#3DB8A0' }}>
-        {order.providerName.slice(0, 1)}
+      <p className="fulfill__label">正在服务 · {order.slotLabel}</p>
+      <div className="avatar avatar--xxl" style={{ background: '#E0A050' }}>
+        {order.buyerName.slice(0, 1)}
       </div>
-      <h2>{order.providerName}</h2>
+      <h2>{order.buyerName}</h2>
       <p className="muted">{order.title}</p>
       <div className="countdown">{formatSec(left)}</div>
-      <p className="muted">网络良好 · {muted ? '已静音' : '麦克风开'}</p>
+      <p className="muted">供给方视角 · {muted ? '已静音' : '麦克风开'}</p>
 
       <div className="fulfill__controls">
         <button type="button" className="ctrl" onClick={() => setMuted((m) => !m)}>
           {muted ? '取消静音' : '静音'}
         </button>
         <button type="button" className="ctrl ctrl--danger" onClick={hangup}>
-          挂断
-        </button>
-        <button type="button" className="ctrl" disabled>
-          举报
+          结束服务
         </button>
       </div>
     </div>

@@ -23,6 +23,9 @@ import {
 import { ProfilePage } from './pages/ProfilePage';
 import { SupplyManagePage } from './pages/SupplyManagePage';
 import { SupplyTasksPage } from './pages/SupplyTasksPage';
+import { SupplyWaitingPage } from './pages/supply/SupplyWaitingPage';
+import { SupplyFulfillVoicePage } from './pages/supply/SupplyFulfillVoicePage';
+import { SupplyFulfillVideoPage } from './pages/supply/SupplyFulfillVideoPage';
 import { TransferPlaceholderPage } from './pages/TransferPlaceholderPage';
 import { WaitingPage } from './pages/WaitingPage';
 import { LaunchFulfillmentPage } from './pages/launch/LaunchFulfillmentPage';
@@ -66,8 +69,17 @@ export default function App() {
             <Route path="pay/:orderId" element={<PayPage />} />
             <Route path="pending-accept/:orderId" element={<PendingAcceptPage />} />
             <Route path="waiting/:orderId" element={<WaitingPage />} />
+            <Route path="supply/waiting/:orderId" element={<SupplyWaitingPage />} />
             <Route path="fulfill/voice/:orderId" element={<FulfillVoicePage />} />
             <Route path="fulfill/video/:orderId" element={<FulfillVideoPage />} />
+            <Route
+              path="supply/fulfill/voice/:orderId"
+              element={<SupplyFulfillVoicePage />}
+            />
+            <Route
+              path="supply/fulfill/video/:orderId"
+              element={<SupplyFulfillVideoPage />}
+            />
             <Route path="done/:orderId" element={<DonePage />} />
             <Route path="home" element={<Navigate to="/" replace />} />
             <Route path="*" element={<NotFoundPage />} />

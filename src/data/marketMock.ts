@@ -5,7 +5,7 @@ import {
   type CategoryKey,
   type MomentItem,
 } from './mock';
-import { WITHIN_15_MIN_MS } from '../utils/bookingSlots';
+import { WITHIN_15_MIN_MS, getBookingStatus, migrateScheduleFields } from '../utils/bookingSlots';
 import { getRemainingStock } from '../state/orderStore';
 import { getOpenCompanionListings } from '../state/supplyStore';
 
@@ -49,6 +49,7 @@ export type PersonListing = {
   offerTags: string[];
   earliestAt?: number;
   earliestLabel?: string;
+  inBusiness: boolean;
   within15Min: boolean;
   fromPriceYuan: number;
   has1v1: boolean;
@@ -154,10 +155,15 @@ function buildPersonListing(
   }
 
   const now = Date.now();
+  const nowDate = new Date(now);
   let earliestAt: number | undefined;
   let earliestLabel: string | undefined;
+  let inBusiness = false;
   for (const m of moments) {
-    const av = buyerAvailability(m, new Date(now), getRemainingStock);
+    const config = migrateScheduleFields(m);
+    const status = getBookingStatus(m.id, config, nowDate, getRemainingStock);
+    if (status.inBusiness) inBusiness = true;
+    const av = buyerAvailability(m, nowDate, getRemainingStock);
     if (av.kind === 'available') {
       const ms = av.earliestAt.getTime();
       if (earliestAt === undefined || ms < earliestAt) {
@@ -184,8 +190,11 @@ function buildPersonListing(
     offerTags,
     earliestAt,
     earliestLabel,
+    inBusiness,
     within15Min:
-      earliestAt !== undefined && earliestAt - now <= WITHIN_15_MIN_MS,
+      inBusiness &&
+      earliestAt !== undefined &&
+      earliestAt - now <= WITHIN_15_MIN_MS,
     fromPriceYuan,
     has1v1: moments.length > 0,
     hasGroup: groups.length > 0,
@@ -237,9 +246,10 @@ export function sortMarketItems(items: MarketItem[]): MarketItem[] {
   return [...items].sort((a, b) => {
     const rank = (item: MarketItem) => {
       if (item.kind === 'transfer') return 3;
-      if (item.within15Min) return 0;
-      if (item.earliestAt || item.hasGroup) return 1;
-      return 2;
+      if (item.kind === 'person' && item.within15Min) return 0;
+      if (item.kind === 'person' && item.inBusiness) return 1;
+      if (item.kind === 'person' && (item.earliestAt || item.hasGroup)) return 2;
+      return 3;
     };
     const ra = rank(a);
     const rb = rank(b);

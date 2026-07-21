@@ -125,10 +125,14 @@ function applySkuDefaults(skuType?: SkuType) {
     draft.title = '60 秒语音专属时刻';
     draft.description = '和我进行一段专属语音互动。';
     draft.priceYuan = 9.9;
+    draft.availFrom = '10:00';
+    draft.availTo = '22:00';
   } else if (skuType === 'video') {
     draft.title = '60 秒视频专属时刻';
     draft.description = '和我进行一段专属视频互动。';
     draft.priceYuan = 19.9;
+    draft.availFrom = '10:00';
+    draft.availTo = '22:00';
   } else if (skuType === 'companion') {
     draft.title = '陪玩 1 小时';
     draft.description = '按约定时间完成陪玩服务，完成后双方确认交割。';
@@ -150,11 +154,8 @@ export function loadListingIntoDraft(
       priceYuan: listing.priceYuan,
       durationSec: listing.durationSec,
       bookingOpen: listing.bookingOpen,
-      bufferMin: listing.bufferMin,
-      slotIntervalMin: listing.slotIntervalMin,
       availFrom: listing.availFrom,
       availTo: listing.availTo,
-      bookableDays: listing.bookableDays,
     };
   } else {
     draft = {
@@ -182,29 +183,16 @@ export function clearLaunchDraft() {
 
 export function validateScheduleDraft(current = draft): string | null {
   if (current.skuType === 'companion') return null;
-  if (
-    current.bufferMin === '' ||
-    current.slotIntervalMin === '' ||
-    current.bookableDays === '' ||
-    !current.availFrom.trim() ||
-    !current.availTo.trim()
-  ) {
-    return '请完整填写最早可约缓冲、预约间隔、每日时段和可预约天数';
+  if (!current.availFrom.trim() || !current.availTo.trim()) {
+    return '请完整填写营业时间';
   }
-  if (Number(current.bufferMin) <= 0) return '最早可约缓冲须大于 0';
-  if (Number(current.slotIntervalMin) <= 0) return '预约间隔须大于 0';
-  if (Number(current.bookableDays) <= 0) return '可预约天数须大于 0';
-  if (current.availFrom >= current.availTo) return '结束时间须晚于开始时间';
   return null;
 }
 
 export function draftScheduleConfig(current = draft) {
   return {
     bookingOpen: current.bookingOpen,
-    bufferMin: Number(current.bufferMin),
-    slotIntervalMin: Number(current.slotIntervalMin),
     availFrom: current.availFrom,
     availTo: current.availTo,
-    bookableDays: Number(current.bookableDays),
   };
 }

@@ -1,13 +1,9 @@
 import { Link } from 'react-router-dom';
 import { PageHeader } from '../components/PageHeader';
 import { confirmGroupOrderSide } from '../state/groupOrderStore';
-import {
-  confirmBooking,
-  markProviderReady,
-  statusLabel,
-  timingLabel,
-} from '../state/orderStore';
+import { confirmBooking, statusLabel, timingLabel } from '../state/orderStore';
 import { useSupplyTasks } from '../state/supplyTasks';
+import { providerFulfillPath, providerWaitingPath } from '../utils/orderPerspective';
 
 export function SupplyTasksPage() {
   const tasks = useSupplyTasks();
@@ -69,32 +65,20 @@ export function SupplyTasksPage() {
                       <p className="muted">
                         {timingLabel(order.timing)} · {order.slotLabel} ·{' '}
                         {statusLabel(order.status)}
-                        {order.nearTerm && !order.providerReady
-                          ? ' · 待标记就绪'
-                          : ''}
+                        {!order.providerReady ? ' · 待标记就绪' : ''}
+                        {order.buyerReady ? ' · 买家已就位' : ''}
                       </p>
                     </div>
                     <div className="task-card__actions">
-                      {order.nearTerm && !order.providerReady && (
-                        <button
-                          type="button"
-                          className="btn btn--primary btn--sm"
-                          onClick={() => markProviderReady(order.id)}
-                        >
-                          标记就绪
-                        </button>
-                      )}
                       <Link
                         to={
                           order.status === 'in_progress'
-                            ? order.form === 'voice'
-                              ? `/fulfill/voice/${order.id}`
-                              : `/fulfill/video/${order.id}`
-                            : `/waiting/${order.id}`
+                            ? providerFulfillPath(order)
+                            : providerWaitingPath(order.id)
                         }
-                        className="btn btn--ghost btn--sm"
+                        className="btn btn--primary btn--sm"
                       >
-                        进入
+                        {order.status === 'in_progress' ? '继续履约' : '进入等待室'}
                       </Link>
                     </div>
                   </article>

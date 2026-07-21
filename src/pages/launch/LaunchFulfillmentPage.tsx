@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../../components/PageHeader';
 import { SupplyLaunchProgress } from '../../components/SupplyLaunchProgress';
 import type { SkuType } from '../../data/mock';
@@ -9,26 +9,42 @@ import {
   useLaunchDraft,
   validateScheduleDraft,
 } from '../../state/launchDraftStore';
+import { useSupplyTasks } from '../../state/supplyTasks';
 import {
+  formatBusinessHoursLabel,
+  formatNextOpenLabel,
+  getBookingStatus,
   listAllBookableSlots,
+  MIN_LEAD_MIN,
   scheduleFromDraft,
+  SLOT_INTERVAL_MIN,
 } from '../../utils/bookingSlots';
 
 const validTypes: SkuType[] = ['voice', 'video', 'companion'];
-const intervalOptions = [15, 30, 60];
 
 export function LaunchFulfillmentPage() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const sku = params.get('sku') as SkuType | null;
   const draft = useLaunchDraft();
+  const tasks = useSupplyTasks();
   const [error, setError] = useState('');
+  const [previewNow, setPreviewNow] = useState(() => Date.now());
 
-  const previewSlots = useMemo(() => {
-    if (sku === 'companion' || validateScheduleDraft(draft)) return [];
+  useEffect(() => {
+    if (sku === 'companion') return;
+    const timer = window.setInterval(() => setPreviewNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, [sku]);
+
+  const schedulePreview = useMemo(() => {
+    if (sku === 'companion' || validateScheduleDraft(draft)) return null;
     const config = scheduleFromDraft(draftScheduleConfig(draft));
-    return listAllBookableSlots('preview', config).slice(0, 3);
-  }, [draft, sku]);
+    const now = new Date(previewNow);
+    const status = getBookingStatus('preview', config, now);
+    const slots = listAllBookableSlots('preview', config, now).slice(0, 3);
+    return { config, status, slots, now };
+  }, [draft, sku, previewNow]);
 
   if (!sku || !validTypes.includes(sku) || draft.skuType !== sku) {
     return <Navigate to="/profile/my-moments/launch/type" replace />;
@@ -92,50 +108,14 @@ export function LaunchFulfillmentPage() {
           </section>
 
           <section className="section">
-            <h3 className="section__title">排期规则</h3>
+            <h3 className="section__title">营业时间</h3>
             <p className="section__desc">
-              系统按 T+N 与间隔 X 自动生成可预约时间，买家在详情页横向选择。
+              系统按 {SLOT_INTERVAL_MIN} 分钟格子自动生成可预约时间；买家需至少提前{' '}
+              {MIN_LEAD_MIN} 分钟下单。结束早于开始表示跨日至次日，如 10:00–02:00。
             </p>
-            <label className="form-field">
-              <span>最早可约缓冲 N（分钟，必填）</span>
-              <input
-                type="number"
-                min={5}
-                max={240}
-                step={5}
-                placeholder="例如 15"
-                value={draft.bufferMin}
-                onChange={(event) =>
-                  updateLaunchDraft({
-                    bufferMin:
-                      event.target.value === ''
-                        ? ''
-                        : Number(event.target.value),
-                  })
-                }
-              />
-              <small className="muted">从现在起至少 N 分钟后可被预约</small>
-            </label>
-            <label className="form-field">
-              <span>预约间隔 X（分钟，必填）</span>
-              <div className="segment-row">
-                {intervalOptions.map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    className={`segment-btn ${
-                      draft.slotIntervalMin === value ? 'segment-btn--active' : ''
-                    }`}
-                    onClick={() => updateLaunchDraft({ slotIntervalMin: value })}
-                  >
-                    {value} 分
-                  </button>
-                ))}
-              </div>
-            </label>
             <div className="form-row">
               <label className="form-field">
-                <span>每日开始</span>
+                <span>开始</span>
                 <input
                   type="time"
                   value={draft.availFrom}
@@ -145,7 +125,7 @@ export function LaunchFulfillmentPage() {
                 />
               </label>
               <label className="form-field">
-                <span>每日结束</span>
+                <span>结束</span>
                 <input
                   type="time"
                   value={draft.availTo}
@@ -155,40 +135,56 @@ export function LaunchFulfillmentPage() {
                 />
               </label>
             </div>
-            <label className="form-field">
-              <span>可预约天数（必填）</span>
-              <input
-                type="number"
-                min={1}
-                max={30}
-                placeholder="例如 7"
-                value={draft.bookableDays}
-                onChange={(event) =>
-                  updateLaunchDraft({
-                    bookableDays:
-                      event.target.value === ''
-                        ? ''
-                        : Number(event.target.value),
-                  })
-                }
-              />
-            </label>
           </section>
 
-          {previewSlots.length > 0 && (
+          {schedulePreview && (
             <section className="section">
               <h3 className="section__title">预览</h3>
-              <p className="section__desc">买家最早会看到以下时段（示例）：</p>
-              <div className="book-time-row book-time-row--preview">
-                {previewSlots.map((slot) => (
-                  <div key={slot.id} className="book-time-chip">
-                    <strong>{slot.label}</strong>
-                    <span className="muted">空闲</span>
-                  </div>
-                ))}
-              </div>
+              <p className="section__desc">
+                营业时间 {formatBusinessHoursLabel(schedulePreview.config)} ·{' '}
+                {schedulePreview.status.inBusiness
+                  ? schedulePreview.status.earliestSlot
+                    ? '营业中 · 买家最早可约时段如下'
+                    : '营业中 · 已约满'
+                  : schedulePreview.status.nextOpenAt
+                    ? `打烊 · ${formatNextOpenLabel(
+                        schedulePreview.status.nextOpenAt,
+                        schedulePreview.now,
+                      )} 起可约`
+                    : '暂停可约'}
+              </p>
+              {schedulePreview.slots.length > 0 && (
+                <div className="book-time-row book-time-row--preview">
+                  {schedulePreview.slots.map((slot) => (
+                    <div key={slot.id} className="book-time-chip">
+                      <strong>{slot.label}</strong>
+                      <span className="muted">空闲</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
           )}
+
+          <section className="section">
+            <h3 className="section__title">作为供给方如何履约</h3>
+            <div className="soft-card soft-card--static">
+              <ol className="rules" style={{ margin: 0, paddingLeft: 18 }}>
+                <li>有新预约时，消息页和待处理任务会提醒你。</li>
+                <li>到点前进入供给等待室，标记就绪；买家就位后可提前开始。</li>
+                <li>双方就绪后进入供给专属语音/视频页完成服务。</li>
+              </ol>
+              {tasks.total > 0 && (
+                <Link
+                  to="/profile/my-moments/tasks"
+                  className="btn btn--ghost btn--sm"
+                  style={{ marginTop: 12 }}
+                >
+                  查看 {tasks.total} 项待处理任务
+                </Link>
+              )}
+            </div>
+          </section>
         </>
       )}
 

@@ -11,6 +11,7 @@ export function MyMomentsPage() {
   const tasks = useSupplyTasks();
   const active = listings.filter((listing) => listing.status === 'open');
   const offline = listings.filter((listing) => listing.status === 'offline');
+  const soleUpcoming = tasks.upcoming.length === 1 ? tasks.upcoming[0] : null;
 
   return (
     <div className="page">
@@ -46,10 +47,18 @@ export function MyMomentsPage() {
           {tasks.total > 0 && (
             <Link to="/profile/my-moments/tasks" className="supply-task-banner">
               <span>
-                <strong>{tasks.total} 项待处理</strong>
-                <small>待确认预约、待履约或待确认交割</small>
+                <strong>
+                  {tasks.upcoming.length > 0
+                    ? `供给待履约 · ${tasks.upcoming.length} 笔`
+                    : `${tasks.total} 项待处理`}
+                </strong>
+                <small>
+                  {soleUpcoming
+                    ? `${soleUpcoming.slotLabel} · ${soleUpcoming.buyerName} 已预约`
+                    : '待确认预约、待履约或待确认交割'}
+                </small>
               </span>
-              <span>去处理 ›</span>
+              <span>待处理任务 ›</span>
             </Link>
           )}
 

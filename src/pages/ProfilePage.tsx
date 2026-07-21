@@ -69,11 +69,19 @@ export function ProfilePage() {
             className="profile-action profile-action--moment"
           >
             <span>我的 Moment</span>
-            <small>供给 SKU 与待处理任务</small>
-            {supplyTasks.total > 0 && (
-              <span className="action-badge">{supplyTasks.total}</span>
-            )}
+            <small>供给 SKU 与管理</small>
           </Link>
+          {supplyTasks.total > 0 && (
+            <Link
+              to="/profile/my-moments/tasks"
+              className="profile-action profile-action--moment"
+              style={{ marginTop: 8 }}
+            >
+              <span>待处理任务</span>
+              <small>进入等待室、标记就绪与开始履约</small>
+              <span className="action-badge">{supplyTasks.total}</span>
+            </Link>
+          )}
         </div>
       </div>
 

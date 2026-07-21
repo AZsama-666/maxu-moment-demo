@@ -7,7 +7,7 @@ import {
   type MomentItem,
   type SkuType,
 } from '../data/mock';
-import { DEFAULT_SLOT_CAPACITY, migrateScheduleFields } from '../utils/bookingSlots';
+import { BOOKABLE_DAYS, DEFAULT_SLOT_CAPACITY, migrateScheduleFields } from '../utils/bookingSlots';
 import { getRemainingStock } from './orderStore';
 
 export type SupplyStatus = 'open' | 'offline';
@@ -43,11 +43,8 @@ export type CreateMomentInput = {
   description?: string;
   durationSec: number;
   priceYuan: number;
-  bufferMin: number;
-  slotIntervalMin: number;
   availFrom: string;
   availTo: string;
-  bookableDays: number;
   bookingOpen: boolean;
 };
 
@@ -190,11 +187,9 @@ export function createSupplyMoment(input: CreateMomentInput): OneToOneSupplyList
         : '长期开放的视频专属时刻，按预约时间准时履约。'),
     durationSec: input.durationSec,
     priceYuan: input.priceYuan,
-    bufferMin: input.bufferMin,
-    slotIntervalMin: input.slotIntervalMin,
     availFrom: input.availFrom,
     availTo: input.availTo,
-    bookableDays: input.bookableDays,
+    bookableDays: BOOKABLE_DAYS,
     bookingOpen: input.bookingOpen,
     slotCapacity: existing?.slotCapacity ?? DEFAULT_SLOT_CAPACITY,
     fulfilledCount: existing?.fulfilledCount ?? 0,

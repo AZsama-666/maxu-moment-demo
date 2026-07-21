@@ -6,7 +6,13 @@ import { buyerAvailability, providerHeroUrl } from '../data/mock';
 import type { BookableSlot } from '../utils/bookingSlots';
 import { getRemainingStock } from '../state/orderStore';
 import { useSupplyTick } from '../state/supplyStore';
-import { isNearTermSchedule, migrateScheduleFields } from '../utils/bookingSlots';
+import {
+  formatBusinessHoursLabel,
+  getBookingStatus,
+  migrateScheduleFields,
+  MIN_LEAD_MIN,
+  SLOT_INTERVAL_MIN,
+} from '../utils/bookingSlots';
 
 export function DetailPage() {
   useSupplyTick();
@@ -46,10 +52,11 @@ export function DetailPage() {
     );
   }
 
-  const avail = buyerAvailability(moment, new Date(), getRemainingStock);
+  const now = new Date();
+  const avail = buyerAvailability(moment, now, getRemainingStock);
   const heroUrl = providerHeroUrl(provider);
   const schedule = migrateScheduleFields(moment);
-  const nearTerm = isNearTermSchedule(schedule);
+  const bookingStatus = getBookingStatus(moment.id, schedule, now, getRemainingStock);
 
   return (
     <div className="page page--detail">
@@ -83,7 +90,10 @@ export function DetailPage() {
           <p className="detail-cover__bio">{provider.bio}</p>
           <div className="detail-cover__stats">
             <span>已履约 {moment.fulfilledCount}</span>
-            <span>T+{schedule.bufferMin} 分钟起可约</span>
+            <span>
+              {bookingStatus.inBusiness ? '营业中' : '打烊'} ·{' '}
+              {formatBusinessHoursLabel(schedule)}
+            </span>
           </div>
         </div>
       </div>
@@ -102,7 +112,8 @@ export function DetailPage() {
           {avail.kind === 'available' ? (
             <>
               <p className="section__desc">
-                最早 {avail.earliestLabel} 可约 · 间隔 {schedule.slotIntervalMin} 分钟
+                {bookingStatus.inBusiness ? '营业中' : '打烊'} · 最早 {avail.earliestLabel}{' '}
+                可约 · {SLOT_INTERVAL_MIN} 分钟一格 · 需提前 {MIN_LEAD_MIN} 分钟
               </p>
               <BookingTimePicker
                 moment={moment}
@@ -119,13 +130,10 @@ export function DetailPage() {
           <h3 className="section__title">履约须知</h3>
           <ul className="rules">
             <li>购买即锁定所选时段，到点进入等待室履约。</li>
-            {nearTerm ? (
-              <li>
-                近档（N &lt; 60 分钟）：到点前 3 分钟供给未就绪可申请退款；到点未履约自动退。
-              </li>
-            ) : (
-              <li>远档（N ≥ 60 分钟）：付款后需供给方确认预约后生效。</li>
-            )}
+            <li>需至少提前 {MIN_LEAD_MIN} 分钟预约；双方就位后可提前开始。</li>
+            <li>
+              近档（距预约 &lt; 60 分钟）：到点前 3 分钟供给未就绪可申请退款；到点未履约自动退。
+            </li>
             <li>本 Demo 为网页模拟，不产生真实扣款与通话。</li>
           </ul>
         </section>

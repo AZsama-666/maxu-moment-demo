@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { updateOrderStatus, useOrder } from '../state/orderStore';
+import { getOrderPerspective, providerFulfillPath } from '../utils/orderPerspective';
 
 export function FulfillVideoPage() {
   const { orderId = '' } = useParams();
@@ -10,6 +11,13 @@ export function FulfillVideoPage() {
   const [camOff, setCamOff] = useState(false);
   const [left, setLeft] = useState(order?.durationSec ?? 60);
   const finished = useRef(false);
+
+  useEffect(() => {
+    if (!order) return;
+    if (getOrderPerspective(order) === 'provider') {
+      navigate(providerFulfillPath(order), { replace: true });
+    }
+  }, [order, navigate]);
 
   useEffect(() => {
     if (!order) return;

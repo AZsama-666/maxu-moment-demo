@@ -11,6 +11,7 @@ import {
   type PayMethod,
 } from '../state/orderStore';
 import { useSupplyTick } from '../state/supplyStore';
+import { isNearTermSlot } from '../utils/bookingSlots';
 
 export function CheckoutPage() {
   useSupplyTick();
@@ -112,9 +113,9 @@ export function CheckoutPage() {
         <div className="soft-card soft-card--static">
           <strong>{selectedSlot.displayLabel}</strong>
           <p className="muted">
-            {moment.bufferMin < 60
+            {isNearTermSlot(selectedSlot.startMs)
               ? '近档：到点前 3 分钟供给未就绪可申请退款'
-              : '远档：付款后需供给方确认预约'}
+              : '付款后锁定时段；双方就位可提前开始'}
           </p>
         </div>
       </section>

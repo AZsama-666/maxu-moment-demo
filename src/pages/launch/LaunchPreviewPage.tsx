@@ -14,6 +14,7 @@ import {
   getSupplyListing,
   updateCompanionSupply,
 } from '../../state/supplyStore';
+import { spawnDemoSupplyOrderAfterPublish } from '../../state/orderStore';
 import {
   getEarliestBookable,
   scheduleFromDraft,
@@ -87,14 +88,18 @@ export function LaunchPreviewPage() {
         }
       } else {
         const schedule = draftScheduleConfig(draft);
-        id = createSupplyMoment({
+        const listing = createSupplyMoment({
           form: skuType,
           title: draft.title,
           description: draft.description,
           durationSec: draft.durationSec,
           priceYuan: draft.priceYuan,
           ...schedule,
-        }).id;
+        });
+        id = listing.id;
+        if (!draft.editingId) {
+          spawnDemoSupplyOrderAfterPublish(listing);
+        }
       }
       clearLaunchDraft();
       navigate(`/profile/my-moments/launch/success/${id}`, { replace: true });

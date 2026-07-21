@@ -1,15 +1,22 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { PageHeader } from '../components/PageHeader';
 import { loadListingIntoDraft } from '../state/launchDraftStore';
+import { useSupplyTasks } from '../state/supplyTasks';
 import {
   getSupplyListing,
   setSupplyStatus,
   updateSupplyMoment,
   useSupplyListings,
 } from '../state/supplyStore';
+import {
+  formatBusinessHoursLabel,
+  migrateScheduleFields,
+} from '../utils/bookingSlots';
+import { providerWaitingPath } from '../utils/orderPerspective';
 
 export function SupplyManagePage() {
   useSupplyListings();
+  const tasks = useSupplyTasks();
   const { id = '' } = useParams();
   const navigate = useNavigate();
   const listing = getSupplyListing(id);
@@ -25,6 +32,12 @@ export function SupplyManagePage() {
 
   const buyerPath =
     listing.kind === 'companion' ? `/group/${listing.id}` : `/moment/${listing.id}`;
+  const upcoming =
+    listing.kind === '1v1'
+      ? tasks.upcoming.filter((order) => order.momentId === listing.id)
+      : [];
+  const schedule =
+    listing.kind === '1v1' ? migrateScheduleFields(listing) : null;
 
   return (
     <div className="page">
@@ -52,7 +65,7 @@ export function SupplyManagePage() {
         </p>
       </div>
 
-      {listing.kind === '1v1' && listing.status === 'open' && (
+      {listing.kind === '1v1' && listing.status === 'open' && schedule && (
         <section className="section">
           <h3 className="section__title">可约状态</h3>
           <div className="manage-row">
@@ -60,7 +73,7 @@ export function SupplyManagePage() {
               <strong>{listing.bookingOpen ? '开放可约' : '已暂停可约'}</strong>
               <small>
                 {listing.bookingOpen
-                  ? `T+${listing.bufferMin} 分钟起 · 间隔 ${listing.slotIntervalMin} 分钟`
+                  ? `营业时间 ${formatBusinessHoursLabel(schedule)}`
                   : '买家暂时看不到可约时间'}
               </small>
             </span>
@@ -79,6 +92,31 @@ export function SupplyManagePage() {
         </section>
       )}
 
+      {upcoming.length > 0 && (
+        <section className="section">
+          <h3 className="section__title">待履约 · {upcoming.length}</h3>
+          <div className="stack">
+            {upcoming.map((order) => (
+              <Link
+                key={order.id}
+                to={providerWaitingPath(order.id)}
+                className="manage-item"
+              >
+                <span>
+                  <strong>{order.buyerName}</strong>
+                  <small>
+                    {order.slotLabel}
+                    {!order.providerReady ? ' · 待标记就绪' : ''}
+                    {order.buyerReady ? ' · 买家已就位' : ''}
+                  </small>
+                </span>
+                <span>去就绪 ›</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="section">
         <h3 className="section__title">管理</h3>
         <div className="manage-list">
@@ -92,8 +130,8 @@ export function SupplyManagePage() {
             }}
           >
             <span>
-              <strong>商品、价格与排期设置</strong>
-              <small>编辑 N / 间隔 / 可约时段后会进入预览再保存</small>
+              <strong>商品、价格与营业时间</strong>
+              <small>编辑后会进入预览再保存</small>
             </span>
             <span>›</span>
           </button>

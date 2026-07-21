@@ -9,12 +9,16 @@ import {
 import {
   DEFAULT_SLOT_CAPACITY,
   findBookableSlot,
-  isNearTermSchedule,
+  isNearTermSlot,
+  isWithinBusinessHours,
   migrateScheduleFields,
+  NEAR_TERM_BUFFER_MAX,
   NEAR_TERM_REFUND_LEAD_MIN,
   stockKey,
 } from '../utils/bookingSlots';
+import { createDemoSupplyOrderForListing } from './demoSeed';
 import { getOneToOneSupplyListing } from './supplyStore';
+import type { OneToOneSupplyListing } from './supplyStore';
 
 export type OrderStatus =
   | 'pending_payment'
@@ -37,10 +41,12 @@ export type Order = {
   title: string;
   providerName: string;
   providerId: string;
+  buyerName: string;
   slotLabel: string;
   slotStartAt: number;
   nearTerm: boolean;
   providerReady: boolean;
+  buyerReady: boolean;
   priceYuan: number;
   durationSec: number;
   quantity: number;
@@ -50,11 +56,16 @@ export type Order = {
   createdAt: number;
   paidAt?: number;
   acceptedAt?: number;
+  startedEarlyAt?: number;
 };
 
 export const MAX_ORDER_QTY = 5;
+export const ENABLE_FAR_TERM_CONFIRM = false;
+export const DEMO_BUYER_NAME = '访客买家';
+/** Demo 单人演示：一方点就绪时同步另一方；真实环境改为 false */
+export const DEMO_MIRROR_READY = true;
 
-const STORAGE_KEY = 'maxu-moment-demo-orders-v3';
+const STORAGE_KEY = 'maxu-moment-demo-orders-v4';
 const STOCK_KEY = 'maxu-moment-demo-stock-v2';
 
 type StockMap = Record<string, number>;
@@ -82,14 +93,17 @@ function loadSnapshot(): StoreSnapshot {
 }
 
 function normalizeOrder(order: Order): Order {
+  const slotStartAt = order.slotStartAt ?? order.createdAt;
   return {
     ...order,
     timing: 'scheduled',
     providerId: order.providerId ?? '',
+    buyerName: order.buyerName ?? DEMO_BUYER_NAME,
     quantity: order.quantity ?? 1,
-    slotStartAt: order.slotStartAt ?? order.createdAt,
-    nearTerm: order.nearTerm ?? false,
+    slotStartAt,
+    nearTerm: order.nearTerm ?? isNearTermSlot(slotStartAt),
     providerReady: order.providerReady ?? false,
+    buyerReady: order.buyerReady ?? false,
   };
 }
 
@@ -183,10 +197,12 @@ export function createPendingOrder(input: {
     title: moment.title,
     providerName: provider.name,
     providerId: moment.providerId,
+    buyerName: DEMO_BUYER_NAME,
     slotLabel: slot.displayLabel,
     slotStartAt: slot.startMs,
-    nearTerm: isNearTermSchedule(config),
+    nearTerm: isNearTermSlot(slot.startMs),
     providerReady: false,
+    buyerReady: false,
     priceYuan: Number((moment.priceYuan * quantity).toFixed(1)),
     durationSec: moment.durationSec * quantity,
     quantity,
@@ -215,24 +231,28 @@ export function payOrder(orderId: string): boolean {
   const order = snapshot.orders.find((o) => o.id === orderId);
   if (!order || order.status !== 'pending_payment') return false;
 
-  if (order.nearTerm) {
-    if (!deductStock(order)) return false;
+  const farTerm =
+    ENABLE_FAR_TERM_CONFIRM &&
+    order.slotStartAt - Date.now() >= NEAR_TERM_BUFFER_MAX * 60 * 1000;
+
+  if (farTerm) {
     setSnapshot({
       ...snapshot,
       orders: snapshot.orders.map((o) =>
         o.id === orderId
-          ? { ...o, status: 'booked' as const, paidAt: Date.now() }
+          ? { ...o, status: 'pending_confirm' as const, paidAt: Date.now() }
           : o,
       ),
     });
     return true;
   }
 
+  if (!deductStock(order)) return false;
   setSnapshot({
     ...snapshot,
     orders: snapshot.orders.map((o) =>
       o.id === orderId
-        ? { ...o, status: 'pending_confirm' as const, paidAt: Date.now() }
+        ? { ...o, status: 'booked' as const, paidAt: Date.now() }
         : o,
     ),
   });
@@ -258,7 +278,59 @@ export function markProviderReady(orderId: string): boolean {
   setSnapshot({
     ...snapshot,
     orders: snapshot.orders.map((o) =>
-      o.id === orderId ? { ...o, providerReady: true } : o,
+      o.id === orderId
+        ? {
+            ...o,
+            providerReady: true,
+            buyerReady: DEMO_MIRROR_READY ? true : o.buyerReady,
+          }
+        : o,
+    ),
+  });
+  return true;
+}
+
+export function markBuyerReady(orderId: string): boolean {
+  const order = snapshot.orders.find((o) => o.id === orderId);
+  if (!order || order.status !== 'booked') return false;
+  setSnapshot({
+    ...snapshot,
+    orders: snapshot.orders.map((o) =>
+      o.id === orderId
+        ? {
+            ...o,
+            buyerReady: true,
+            providerReady: DEMO_MIRROR_READY ? true : o.providerReady,
+          }
+        : o,
+    ),
+  });
+  return true;
+}
+
+export function canStartEarly(order: Order, now = Date.now()): boolean {
+  if (order.status !== 'booked') return false;
+  if (now >= order.slotStartAt) return true;
+  if (!order.providerReady || !order.buyerReady) return false;
+  const moment = resolveMoment(order.momentId);
+  if (!moment) return false;
+  const config = migrateScheduleFields(moment);
+  return isWithinBusinessHours(new Date(now), config);
+}
+
+export function startEarly(orderId: string): boolean {
+  const order = snapshot.orders.find((o) => o.id === orderId);
+  if (!order || !canStartEarly(order)) return false;
+  setSnapshot({
+    ...snapshot,
+    orders: snapshot.orders.map((o) =>
+      o.id === orderId
+        ? {
+            ...o,
+            status: 'in_progress' as const,
+            startedEarlyAt: Date.now(),
+          }
+        : o,
     ),
   });
   return true;
@@ -299,6 +371,21 @@ export function updateOrderStatus(orderId: string, status: OrderStatus) {
 
 export function getOrder(orderId: string) {
   return snapshot.orders.find((o) => o.id === orderId);
+}
+
+export function prependOrder(order: Order) {
+  if (snapshot.orders.some((o) => o.id === order.id)) return;
+  setSnapshot({ ...snapshot, orders: [order, ...snapshot.orders] });
+}
+
+/** 供给方首次发起 1V1 后，自动安排一笔 mock 预约单 */
+export function spawnDemoSupplyOrderAfterPublish(
+  listing: OneToOneSupplyListing,
+): Order | null {
+  const order = createDemoSupplyOrderForListing(listing, snapshot.orders);
+  if (!order) return null;
+  prependOrder(order);
+  return order;
 }
 
 export function useOrders() {

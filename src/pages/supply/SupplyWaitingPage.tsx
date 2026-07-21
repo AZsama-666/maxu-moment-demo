@@ -1,23 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { PageHeader } from '../components/PageHeader';
+import { PageHeader } from '../../components/PageHeader';
 import {
   canStartEarly,
-  markBuyerReady,
+  markProviderReady,
   refundOrder,
   shouldAutoRefundNearTerm,
   shouldOfferNearTermRefund,
   slotCountdownSec,
   startEarly,
   useOrder,
-} from '../state/orderStore';
-import {
-  buyerFulfillPath,
-  getOrderPerspective,
-  providerWaitingPath,
-} from '../utils/orderPerspective';
+} from '../../state/orderStore';
+import { getOrderPerspective, providerFulfillPath } from '../../utils/orderPerspective';
 
-export function WaitingPage() {
+export function SupplyWaitingPage() {
   const { orderId = '' } = useParams();
   const order = useOrder(orderId);
   const navigate = useNavigate();
@@ -30,8 +26,8 @@ export function WaitingPage() {
 
   useEffect(() => {
     if (!order) return;
-    if (getOrderPerspective(order) === 'provider') {
-      navigate(providerWaitingPath(order.id), { replace: true });
+    if (getOrderPerspective(order) !== 'provider') {
+      navigate(`/waiting/${order.id}`, { replace: true });
       return;
     }
     if (shouldAutoRefundNearTerm(order, now)) {
@@ -41,13 +37,13 @@ export function WaitingPage() {
 
   useEffect(() => {
     if (!order || order.status !== 'in_progress') return;
-    navigate(buyerFulfillPath(order), { replace: true });
+    navigate(providerFulfillPath(order), { replace: true });
   }, [order, navigate]);
 
   if (!order) {
     return (
       <div className="page">
-        <PageHeader title="等待室" backTo="/profile/orders" />
+        <PageHeader title="供给等待室" backTo="/profile/my-moments/tasks" />
         <p className="empty">订单不存在</p>
       </div>
     );
@@ -56,19 +52,17 @@ export function WaitingPage() {
   if (order.status === 'pending_confirm') {
     return (
       <div className="page page--center">
-        <PageHeader title="等待确认" backTo="/profile/orders" />
+        <PageHeader title="等待确认" backTo="/profile/my-moments/tasks" />
         <div className="waiting-card">
-          <h2>等待供给方确认预约</h2>
+          <h2>等待你确认预约</h2>
           <p className="muted">{order.slotLabel}</p>
-          <p className="body-text">
-            远档预约需供给方在任务页确认后才会锁定。你也可以在订单页申请退款。
-          </p>
+          <p className="body-text">买家已付款，请在待处理任务中确认预约。</p>
           <button
             type="button"
-            className="btn btn--ghost btn--block"
-            onClick={() => navigate('/profile/orders')}
+            className="btn btn--primary btn--block"
+            onClick={() => navigate('/profile/my-moments/tasks')}
           >
-            返回订单
+            去任务页确认
           </button>
         </div>
       </div>
@@ -83,24 +77,21 @@ export function WaitingPage() {
   const handleStart = () => {
     if (!canStartEarly(order, now) && now < order.slotStartAt) return;
     if (order.status === 'booked') startEarly(order.id);
-    navigate(buyerFulfillPath(order));
+    navigate(providerFulfillPath(order));
   };
 
   return (
     <div className="page page--center">
-      <PageHeader title="等待室" backTo="/profile/orders" />
+      <PageHeader title="供给等待室" backTo="/profile/my-moments/tasks" />
 
       <div className="waiting-card">
-        <div
-          className="avatar avatar--xl"
-          style={{ background: order.form === 'voice' ? '#3DB8A0' : '#4A7FD4' }}
-        >
-          {order.providerName.slice(0, 1)}
+        <div className="avatar avatar--xl" style={{ background: '#E0A050' }}>
+          {order.buyerName.slice(0, 1)}
         </div>
         <h2>{order.title}</h2>
         <p className="muted">
-          {order.providerName} · {order.form === 'voice' ? '语音互动' : '视频互动'} ·{' '}
-          {order.durationSec} 秒
+          买家 {order.buyerName} ·{' '}
+          {order.form === 'voice' ? '语音互动' : '视频互动'} · {order.durationSec} 秒
         </p>
         <p className="waiting-time">预约时间：{order.slotLabel}</p>
 
@@ -111,42 +102,30 @@ export function WaitingPage() {
         )}
 
         <div className="checklist">
-          <div>{order.buyerReady ? '✓' : '○'} 你已就位</div>
-          <div>{order.providerReady ? '✓' : '○'} 供给方已就绪</div>
-          <div>✓ 麦克风权限（模拟已就绪）</div>
-          {order.form === 'video' && <div>✓ 摄像头权限（模拟已就绪）</div>}
+          <div>{order.providerReady ? '✓' : '○'} 你已标记就绪</div>
+          <div>{order.buyerReady ? '✓' : '○'} 买家已就位</div>
         </div>
+        <p className="body-text muted">Demo：点就绪会模拟对方也已就位</p>
 
-        {!order.buyerReady && order.status === 'booked' && (
+        {!order.providerReady && order.status === 'booked' && (
           <button
             type="button"
-            className="btn btn--ghost btn--block"
-            onClick={() => markBuyerReady(order.id)}
+            className="btn btn--primary btn--block"
+            onClick={() => markProviderReady(order.id)}
           >
-            我已就位
+            标记就绪
           </button>
         )}
 
-        {order.buyerReady && !order.providerReady && now < order.slotStartAt && (
-          <p className="body-text muted">等待供给方标记就绪…</p>
+        {order.providerReady && !order.buyerReady && now < order.slotStartAt && (
+          <p className="body-text muted">等待买家就位…</p>
         )}
 
         {offerRefund && (
           <div className="rules-bar rules-bar--warn">
-            <p>到点前 3 分钟，供给方尚未标记就绪。是否申请退款？</p>
-            <button
-              type="button"
-              className="btn btn--ghost btn--sm"
-              onClick={() => refundOrder(order.id)}
-            >
-              申请退款
-            </button>
+            <p>到点前 3 分钟你尚未标记就绪，买家可能申请退款。</p>
           </div>
         )}
-
-        <p className="body-text">
-          双方就位后可提前开始；到点未开始近档订单将自动退款。
-        </p>
 
         <button
           type="button"
@@ -157,15 +136,16 @@ export function WaitingPage() {
           {bothReady && now < order.slotStartAt
             ? '双方已就位 · 开始履约'
             : now >= order.slotStartAt
-              ? '到点 · 进入履约'
+              ? '到点 · 开始履约'
               : '等待双方就位'}
         </button>
+
         <button
           type="button"
           className="btn btn--ghost btn--block"
-          onClick={() => navigate('/profile/orders')}
+          onClick={() => navigate('/messages')}
         >
-          稍后再来
+          返回消息
         </button>
       </div>
     </div>

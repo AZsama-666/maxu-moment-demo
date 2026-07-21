@@ -3,6 +3,7 @@ const LOCAL_KEYS = [
   'maxu-moment-demo-supply-v4',
   'maxu-moment-demo-supply-v3',
   'maxu-moment-demo-supply-v2',
+  'maxu-moment-demo-orders-v4',
   'maxu-moment-demo-orders-v3',
   'maxu-moment-demo-orders-v2',
   'maxu-moment-demo-stock-v2',

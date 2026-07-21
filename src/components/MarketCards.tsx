@@ -38,6 +38,9 @@ export function PersonCard({ person }: { person: PersonListing }) {
           <span>{person.offerTags.join(' · ') || 'Moment'}</span>
         </div>
         <div className="moment-card__trust">
+          {person.inBusiness && (
+            <span className="trust-chip">营业中</span>
+          )}
           {person.offerTags.map((tag) => (
             <span key={tag} className="trust-chip muted-chip">
               {tag}

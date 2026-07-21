@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { chatShortcuts, conversations } from '../data/appShellMock';
+import { useMessageReminders } from '../state/messageReminders';
 import { useSupplyTasks } from '../state/supplyTasks';
 
 const filters = ['全部', '私聊', '群聊'] as const;
@@ -9,6 +10,7 @@ type Filter = (typeof filters)[number];
 export function MessagesPage() {
   const [filter, setFilter] = useState<Filter>('全部');
   const supplyTasks = useSupplyTasks();
+  const reminders = useMessageReminders();
 
   const list = conversations.filter((c) => {
     if (filter === '私聊') return c.kind === 'private';
@@ -27,21 +29,63 @@ export function MessagesPage() {
       </header>
 
       <div className="chat-shortcuts">
-        {chatShortcuts.map((s) => (
-          <div key={s.id} className="chat-shortcut">
-            <span className="chat-shortcut__icon" style={{ background: s.color }}>
-              {s.icon}
-            </span>
-            <span className="chat-shortcut__label">{s.label}</span>
-          </div>
-        ))}
+        {chatShortcuts.map((s) => {
+          const content = (
+            <>
+              <span className="chat-shortcut__icon" style={{ background: s.color }}>
+                {s.icon}
+              </span>
+              <span className="chat-shortcut__label">{s.label}</span>
+            </>
+          );
+          if (s.id === 's1') {
+            return (
+              <Link key={s.id} to="/profile/my-moments/tasks" className="chat-shortcut">
+                {content}
+              </Link>
+            );
+          }
+          return (
+            <div key={s.id} className="chat-shortcut">
+              {content}
+            </div>
+          );
+        })}
       </div>
 
       {supplyTasks.total > 0 && (
-        <Link to="/profile/my-moments/tasks" className="feed-banner-signal" style={{ margin: '8px 0 0' }}>
-          <span className="moment-signal-pill">待接单</span>
-          <span>你有 {supplyTasks.total} 项供给任务待处理，点击查看</span>
+        <Link
+          to="/profile/my-moments/tasks"
+          className="feed-banner-signal"
+          style={{ margin: reminders.length > 0 ? '8px 0 0' : '8px 0 0' }}
+        >
+          <span className="moment-signal-pill">供给任务</span>
+          <span>
+            {supplyTasks.upcoming.length > 0
+              ? `你有 ${supplyTasks.upcoming.length} 笔待履约，进入待处理任务`
+              : `你有 ${supplyTasks.total} 项供给任务待处理`}
+          </span>
         </Link>
+      )}
+
+      {reminders.length > 0 && (
+        <section className="section" style={{ marginTop: 8 }}>
+          <h3 className="section__title">履约提醒</h3>
+          <div className="stack">
+            {reminders.slice(0, 3).map((item) => (
+              <Link key={item.id} to={item.to} className="feed-banner-signal">
+                <span
+                  className={`moment-signal-pill ${
+                    item.perspective === 'provider' ? '' : 'moment-signal-pill--buyer'
+                  }`}
+                >
+                  {item.perspective === 'provider' ? '供给' : '需求'}
+                </span>
+                <span>{item.preview}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
       )}
 
       <div className="chat-filter" role="tablist">
