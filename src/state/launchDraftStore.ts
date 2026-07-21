@@ -5,11 +5,6 @@ import type {
   OneToOneSupplyListing,
 } from './supplyStore';
 
-export type DraftSlot = {
-  label: string;
-  remaining: number;
-};
-
 export type LaunchDraft = {
   draftId: string;
   editingId?: string;
@@ -19,14 +14,18 @@ export type LaunchDraft = {
   priceYuan: number;
   durationSec: number;
   unitLabel: string;
-  realtimeEnabled: boolean;
-  slots: DraftSlot[];
+  bookingOpen: boolean;
+  bufferMin: number | '';
+  slotIntervalMin: number | '';
+  availFrom: string;
+  availTo: string;
+  bookableDays: number | '';
   serviceTime: string;
   placeLabel: string;
   seats: number;
 };
 
-const STORAGE_KEY = 'maxu-moment-launch-draft-v1';
+const STORAGE_KEY = 'maxu-moment-launch-draft-v2';
 
 function createEmptyDraft(): LaunchDraft {
   return {
@@ -36,8 +35,12 @@ function createEmptyDraft(): LaunchDraft {
     priceYuan: 0,
     durationSec: 60,
     unitLabel: '1 小时/份',
-    realtimeEnabled: true,
-    slots: [],
+    bookingOpen: true,
+    bufferMin: '',
+    slotIntervalMin: '',
+    availFrom: '',
+    availTo: '',
+    bookableDays: '',
     serviceTime: '周六 19:30',
     placeLabel: '线上',
     seats: 5,
@@ -47,7 +50,24 @@ function createEmptyDraft(): LaunchDraft {
 function load(): LaunchDraft {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
-    return raw ? { ...createEmptyDraft(), ...(JSON.parse(raw) as LaunchDraft) } : createEmptyDraft();
+    if (raw) {
+      return { ...createEmptyDraft(), ...(JSON.parse(raw) as LaunchDraft) };
+    }
+    const legacy = sessionStorage.getItem('maxu-moment-launch-draft-v1');
+    if (legacy) {
+      const old = JSON.parse(legacy) as Record<string, unknown>;
+      return {
+        ...createEmptyDraft(),
+        ...(old as Partial<LaunchDraft>),
+        bookingOpen: (old.realtimeEnabled as boolean | undefined) ?? true,
+        bufferMin: '',
+        slotIntervalMin: '',
+        availFrom: '',
+        availTo: '',
+        bookableDays: '',
+      };
+    }
+    return createEmptyDraft();
   } catch {
     return createEmptyDraft();
   }
@@ -113,7 +133,7 @@ function applySkuDefaults(skuType?: SkuType) {
     draft.title = '陪玩 1 小时';
     draft.description = '按约定时间完成陪玩服务，完成后双方确认交割。';
     draft.priceYuan = 39;
-    draft.realtimeEnabled = false;
+    draft.bookingOpen = false;
   }
 }
 
@@ -129,11 +149,12 @@ export function loadListingIntoDraft(
       description: listing.description,
       priceYuan: listing.priceYuan,
       durationSec: listing.durationSec,
-      realtimeEnabled: listing.asapEnabled,
-      slots: listing.slots.map((slot) => ({
-        label: slot.label,
-        remaining: slot.remaining,
-      })),
+      bookingOpen: listing.bookingOpen,
+      bufferMin: listing.bufferMin,
+      slotIntervalMin: listing.slotIntervalMin,
+      availFrom: listing.availFrom,
+      availTo: listing.availTo,
+      bookableDays: listing.bookableDays,
     };
   } else {
     draft = {
@@ -147,7 +168,7 @@ export function loadListingIntoDraft(
       serviceTime: listing.serviceTime,
       placeLabel: listing.placeLabel,
       seats: listing.seats,
-      realtimeEnabled: false,
+      bookingOpen: false,
     };
   }
   emit();
@@ -157,4 +178,33 @@ export function clearLaunchDraft() {
   draft = createEmptyDraft();
   sessionStorage.removeItem(STORAGE_KEY);
   listeners.forEach((listener) => listener());
+}
+
+export function validateScheduleDraft(current = draft): string | null {
+  if (current.skuType === 'companion') return null;
+  if (
+    current.bufferMin === '' ||
+    current.slotIntervalMin === '' ||
+    current.bookableDays === '' ||
+    !current.availFrom.trim() ||
+    !current.availTo.trim()
+  ) {
+    return '请完整填写最早可约缓冲、预约间隔、每日时段和可预约天数';
+  }
+  if (Number(current.bufferMin) <= 0) return '最早可约缓冲须大于 0';
+  if (Number(current.slotIntervalMin) <= 0) return '预约间隔须大于 0';
+  if (Number(current.bookableDays) <= 0) return '可预约天数须大于 0';
+  if (current.availFrom >= current.availTo) return '结束时间须晚于开始时间';
+  return null;
+}
+
+export function draftScheduleConfig(current = draft) {
+  return {
+    bookingOpen: current.bookingOpen,
+    bufferMin: Number(current.bufferMin),
+    slotIntervalMin: Number(current.slotIntervalMin),
+    availFrom: current.availFrom,
+    availTo: current.availTo,
+    bookableDays: Number(current.bookableDays),
+  };
 }

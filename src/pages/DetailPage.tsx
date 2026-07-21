@@ -1,15 +1,19 @@
+import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { BookingTimePicker } from '../components/BookingTimePicker';
 import { getMoment, getProvider } from '../data/catalog';
 import { buyerAvailability, providerHeroUrl } from '../data/mock';
-import { ASAP_SLA_MIN, useOrders } from '../state/orderStore';
+import type { BookableSlot } from '../utils/bookingSlots';
+import { getRemainingStock } from '../state/orderStore';
 import { useSupplyTick } from '../state/supplyStore';
+import { isNearTermSchedule, migrateScheduleFields } from '../utils/bookingSlots';
 
 export function DetailPage() {
   useSupplyTick();
-  useOrders();
   const { momentId = '' } = useParams();
   const navigate = useNavigate();
   const moment = getMoment(momentId);
+  const [selectedSlot, setSelectedSlot] = useState<BookableSlot | null>(null);
 
   if (!moment) {
     return (
@@ -42,8 +46,10 @@ export function DetailPage() {
     );
   }
 
-  const avail = buyerAvailability(moment);
+  const avail = buyerAvailability(moment, new Date(), getRemainingStock);
   const heroUrl = providerHeroUrl(provider);
+  const schedule = migrateScheduleFields(moment);
+  const nearTerm = isNearTermSchedule(schedule);
 
   return (
     <div className="page page--detail">
@@ -77,9 +83,7 @@ export function DetailPage() {
           <p className="detail-cover__bio">{provider.bio}</p>
           <div className="detail-cover__stats">
             <span>已履约 {moment.fulfilledCount}</span>
-            {moment.avgResponseMin > 0 && (
-              <span>平均响应时长 {moment.avgResponseMin} 分钟</span>
-            )}
+            <span>T+{schedule.bufferMin} 分钟起可约</span>
           </div>
         </div>
       </div>
@@ -94,38 +98,34 @@ export function DetailPage() {
         <p className="body-text">{moment.description}</p>
 
         <section className="section">
-          <h3 className="section__title">可约情况</h3>
-          <div className="soft-card soft-card--static">
-            {avail.kind === 'now' && (
-              <p>
-                <strong>
-                  {moment.avgResponseMin > 0
-                    ? `尽快 · 平均响应时长 ${avail.waitMin} 分钟内开始`
-                    : '尽快 · 新发布'}
-                </strong>
-                <br />
-                <span className="muted">付款后 {ASAP_SLA_MIN} 分钟内未接自动退款</span>
+          <h3 className="section__title">可订时间</h3>
+          {avail.kind === 'available' ? (
+            <>
+              <p className="section__desc">
+                最早 {avail.earliestLabel} 可约 · 间隔 {schedule.slotIntervalMin} 分钟
               </p>
-            )}
-            {avail.kind === 'slot' && (
-              <p>
-                <strong>可预约 · 最早 {avail.earliestLabel}</strong>
-                <br />
-                <span className="muted">选好时间，到点履约</span>
-              </p>
-            )}
-            {avail.kind === 'now' && moment.slots.some((s) => s.remaining > 0) && (
-              <p className="muted">也可以预约档期，下单时选择时间</p>
-            )}
-            {avail.kind === 'full' && <p>已约满，晚点再来看看</p>}
-          </div>
+              <BookingTimePicker
+                moment={moment}
+                selectedSlotId={selectedSlot?.id}
+                onSelect={setSelectedSlot}
+              />
+            </>
+          ) : (
+            <p className="empty-inline">已约满或暂停可约，晚点再来看看</p>
+          )}
         </section>
 
         <section className="section">
           <h3 className="section__title">履约须知</h3>
           <ul className="rules">
-            <li>尽快：付款后等待对方接单，{ASAP_SLA_MIN} 分钟内未接自动退款。</li>
-            <li>预约：购买即锁定所选时间，到点进等待室。</li>
+            <li>购买即锁定所选时段，到点进入等待室履约。</li>
+            {nearTerm ? (
+              <li>
+                近档（N &lt; 60 分钟）：到点前 3 分钟供给未就绪可申请退款；到点未履约自动退。
+              </li>
+            ) : (
+              <li>远档（N ≥ 60 分钟）：付款后需供给方确认预约后生效。</li>
+            )}
             <li>本 Demo 为网页模拟，不产生真实扣款与通话。</li>
           </ul>
         </section>
@@ -133,20 +133,24 @@ export function DetailPage() {
         <div className="bottom-cta">
           <div>
             <div className="muted">
-              {avail.kind === 'now' &&
-                (moment.avgResponseMin > 0
-                  ? `平均响应时长 ${avail.waitMin} 分钟内开始`
-                  : '新发布 · 等待 TA 接单')}
-              {avail.kind === 'slot' && `最早 ${avail.earliestLabel}`}
-              {avail.kind === 'full' && '已约满'}
+              {selectedSlot
+                ? `已选 ${selectedSlot.displayLabel}`
+                : avail.kind === 'available'
+                  ? `最早 ${avail.earliestLabel} 可约`
+                  : '已约满'}
             </div>
             <strong>¥{moment.priceYuan.toFixed(1)}</strong>
           </div>
           <button
             type="button"
             className="btn btn--primary"
-            disabled={avail.kind === 'full'}
-            onClick={() => navigate(`/checkout/${moment.id}`)}
+            disabled={avail.kind === 'full' || !selectedSlot}
+            onClick={() => {
+              if (!selectedSlot) return;
+              navigate(
+                `/checkout/${moment.id}?slot=${encodeURIComponent(selectedSlot.id)}`,
+              );
+            }}
           >
             去下单
           </button>

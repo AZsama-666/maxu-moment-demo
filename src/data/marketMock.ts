@@ -1,10 +1,12 @@
 import { getProvider, listBrowseMoments } from './catalog';
 import {
-  buyerAvailability,
   SELF_PROVIDER_ID,
+  buyerAvailability,
   type CategoryKey,
   type MomentItem,
 } from './mock';
+import { WITHIN_15_MIN_MS } from '../utils/bookingSlots';
+import { getRemainingStock } from '../state/orderStore';
 import { getOpenCompanionListings } from '../state/supplyStore';
 
 export type MarketFilter = 'all' | CategoryKey;
@@ -44,11 +46,10 @@ export type PersonListing = {
   avatarUrl?: string;
   verified: boolean;
   bio: string;
-  /** 开放能力标签，如 语音 / 视频 / 组局 / 陪玩 */
   offerTags: string[];
-  hasAsap: boolean;
-  waitMin?: number;
+  earliestAt?: number;
   earliestLabel?: string;
+  within15Min: boolean;
   fromPriceYuan: number;
   has1v1: boolean;
   hasGroup: boolean;
@@ -152,17 +153,17 @@ function buildPersonListing(
     if (!offerTags.includes(g.sceneTag)) offerTags.push(g.sceneTag);
   }
 
-  let hasAsap = false;
-  let waitMin: number | undefined;
+  const now = Date.now();
+  let earliestAt: number | undefined;
   let earliestLabel: string | undefined;
   for (const m of moments) {
-    const av = buyerAvailability(m);
-    if (av.kind === 'now') {
-      hasAsap = true;
-      waitMin =
-        waitMin === undefined ? av.waitMin : Math.min(waitMin, av.waitMin);
-    } else if (av.kind === 'slot' && !earliestLabel) {
-      earliestLabel = av.earliestLabel;
+    const av = buyerAvailability(m, new Date(now), getRemainingStock);
+    if (av.kind === 'available') {
+      const ms = av.earliestAt.getTime();
+      if (earliestAt === undefined || ms < earliestAt) {
+        earliestAt = ms;
+        earliestLabel = av.earliestLabel;
+      }
     }
   }
 
@@ -181,16 +182,16 @@ function buildPersonListing(
     verified: provider.verified,
     bio: provider.bio,
     offerTags,
-    hasAsap,
-    waitMin,
+    earliestAt,
     earliestLabel,
+    within15Min:
+      earliestAt !== undefined && earliestAt - now <= WITHIN_15_MIN_MS,
     fromPriceYuan,
     has1v1: moments.length > 0,
     hasGroup: groups.length > 0,
   };
 }
 
-/** 市集按人聚合；转约单独占位。不展示自有号（色块假人），市集只放真人供给。 */
 export function listMarketItems(): MarketItem[] {
   const moments = listBrowseMoments().filter(
     (m) => m.providerId !== SELF_PROVIDER_ID,
@@ -218,7 +219,7 @@ export function listMarketItems(): MarketItem[] {
 export function filterMarketItems(
   items: MarketItem[],
   category: MarketFilter,
-  onlyNow: boolean,
+  within15Min: boolean,
 ): MarketItem[] {
   return items.filter((item) => {
     if (item.kind === 'transfer') {
@@ -227,7 +228,7 @@ export function filterMarketItems(
     if (category === '1v1' && !item.has1v1) return false;
     if (category === 'group' && !item.hasGroup) return false;
     if (category === 'transfer') return false;
-    if (onlyNow && !item.hasAsap) return false;
+    if (within15Min && !item.within15Min) return false;
     return true;
   });
 }
@@ -236,15 +237,20 @@ export function sortMarketItems(items: MarketItem[]): MarketItem[] {
   return [...items].sort((a, b) => {
     const rank = (item: MarketItem) => {
       if (item.kind === 'transfer') return 3;
-      if (item.hasAsap) return 0;
-      if (item.earliestLabel || item.hasGroup) return 1;
+      if (item.within15Min) return 0;
+      if (item.earliestAt || item.hasGroup) return 1;
       return 2;
     };
     const ra = rank(a);
     const rb = rank(b);
     if (ra !== rb) return ra - rb;
-    if (a.kind === 'person' && b.kind === 'person' && ra === 0) {
-      return (a.waitMin ?? 99) - (b.waitMin ?? 99);
+    if (
+      a.kind === 'person' &&
+      b.kind === 'person' &&
+      a.earliestAt &&
+      b.earliestAt
+    ) {
+      return a.earliestAt - b.earliestAt;
     }
     return 0;
   });

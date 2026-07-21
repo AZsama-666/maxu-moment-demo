@@ -1,29 +1,45 @@
 import {
+  buyerAvailability,
   computeStatusLabel,
   getMoment as getStaticMoment,
   getProvider as getStaticProvider,
-  isAcceptingNow,
+  normalizeMomentSchedule,
   moments as staticMoments,
   providers,
   type MomentItem,
   type Provider,
 } from './mock';
 import {
+  findBookableSlot,
+  listAllBookableSlots,
+  migrateScheduleFields,
+  type BookableSlot,
+} from '../utils/bookingSlots';
+import {
   getOpenSupplyMoments,
   getStaticMetricOverrides,
   getOneToOneSupplyListing,
 } from '../state/supplyStore';
+import { getRemainingStock } from '../state/orderStore';
 
 function enrichStatic(m: MomentItem): MomentItem {
   const ov = getStaticMetricOverrides(m.id);
-  if (!ov) return m;
-  const next = {
-    ...m,
+  const normalized = normalizeMomentSchedule(m);
+  if (!ov) {
+    return {
+      ...normalized,
+      statusLabel: computeStatusLabel(normalized, new Date(), getRemainingStock),
+    };
+  }
+  const next = normalizeMomentSchedule({
+    ...normalized,
     fulfilledCount: ov.fulfilledCount,
-    avgResponseMin: ov.avgResponseMin,
-    acceptingPaused: ov.acceptingPaused,
+    bookingOpen: ov.bookingOpen ?? normalized.bookingOpen,
+  });
+  return {
+    ...next,
+    statusLabel: computeStatusLabel(next, new Date(), getRemainingStock),
   };
-  return { ...next, statusLabel: computeStatusLabel(next) };
 }
 
 export function listBrowseMoments(): MomentItem[] {
@@ -33,10 +49,11 @@ export function listBrowseMoments(): MomentItem[] {
 export function getMoment(id: string): MomentItem | undefined {
   const fromSupply = getOneToOneSupplyListing(id);
   if (fromSupply) {
-    const { status: _s, createdAt: _c, ...item } = fromSupply;
+    const { status: _s, createdAt: _c, kind: _k, ...item } = fromSupply;
+    const normalized = normalizeMomentSchedule(item);
     return {
-      ...item,
-      statusLabel: computeStatusLabel(fromSupply),
+      ...normalized,
+      statusLabel: computeStatusLabel(normalized, new Date(), getRemainingStock),
     };
   }
   const staticM = getStaticMoment(id);
@@ -47,18 +64,49 @@ export function getProvider(id: string): Provider | undefined {
   return getStaticProvider(id) ?? providers.find((p) => p.id === id);
 }
 
+export function getBookableSlot(
+  momentId: string,
+  slotId: string,
+): BookableSlot | undefined {
+  const moment = getMoment(momentId);
+  if (!moment) return undefined;
+  const config = migrateScheduleFields(moment);
+  return (
+    findBookableSlot(momentId, config, slotId, new Date(), getRemainingStock) ??
+    undefined
+  );
+}
+
+/** @deprecated 使用 getBookableSlot */
 export function getSlot(momentId: string, slotId: string) {
-  return getMoment(momentId)?.slots.find((s) => s.id === slotId);
+  const slot = getBookableSlot(momentId, slotId);
+  if (!slot) return undefined;
+  return {
+    id: slot.id,
+    label: slot.displayLabel,
+    startAt: slot.startAt,
+    remaining: slot.remaining,
+  };
+}
+
+export function listMomentBookableSlots(momentId: string): BookableSlot[] {
+  const moment = getMoment(momentId);
+  if (!moment) return [];
+  return listAllBookableSlots(
+    momentId,
+    migrateScheduleFields(moment),
+    new Date(),
+    getRemainingStock,
+  );
 }
 
 export function listMomentsByProvider(providerId: string): MomentItem[] {
   return listBrowseMoments().filter((m) => m.providerId === providerId);
 }
 
-export function listAsapMoments(): MomentItem[] {
-  return listBrowseMoments().filter((m) => isAcceptingNow(m));
-}
-
-export function listScheduledMoments(): MomentItem[] {
-  return listBrowseMoments().filter((m) => m.slots.some((s) => s.remaining > 0));
+export function listBookableMoments(): MomentItem[] {
+  return listBrowseMoments().filter(
+    (m) =>
+      buyerAvailability(m, new Date(), getRemainingStock).kind === 'available',
+  );
 }

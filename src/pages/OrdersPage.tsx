@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { PageHeader } from '../components/PageHeader';
 import type { InteractionForm } from '../data/mock';
 import {
-  pendingAcceptRemainSec,
+  slotCountdownSec,
   statusLabel,
   timingLabel,
   useOrders,
@@ -47,7 +47,7 @@ export function OrdersPage() {
       ) : (
         <div className="stack">
           {list.map((order) => {
-            const remainSec = pendingAcceptRemainSec(order);
+            const countdown = slotCountdownSec(order);
             return (
               <div key={order.id} className="order-card">
                 <div className="moment-card__row">
@@ -64,9 +64,16 @@ export function OrdersPage() {
                   {order.providerName} · {timingLabel(order.timing)} · {order.slotLabel}
                   {(order.quantity ?? 1) > 1 ? ` · ${order.durationSec} 秒` : ''}
                 </p>
-                {remainSec !== null && remainSec > 0 && (
-                  <p className="muted">剩余约 {Math.ceil(remainSec / 60)} 分钟未接将自动退款</p>
+                {order.status === 'pending_confirm' && (
+                  <p className="muted">等待供给方确认预约</p>
                 )}
+                {countdown !== null &&
+                  order.status === 'booked' &&
+                  countdown > 0 && (
+                    <p className="muted">
+                      距到点还有 {Math.floor(countdown / 60)} 分钟
+                    </p>
+                  )}
                 <p>¥{order.priceYuan.toFixed(1)}</p>
                 <div className="order-actions">
                   {order.status === 'pending_payment' && (
@@ -74,17 +81,12 @@ export function OrdersPage() {
                       去支付
                     </Link>
                   )}
-                  {order.status === 'pending_accept' && (
-                    <Link
-                      to={`/pending-accept/${order.id}`}
-                      className="btn btn--primary btn--sm"
-                    >
-                      查看接单进度
-                    </Link>
-                  )}
-                  {(order.status === 'accepted' || order.status === 'booked') && (
+                  {(order.status === 'pending_confirm' ||
+                    order.status === 'booked') && (
                     <Link to={`/waiting/${order.id}`} className="btn btn--primary btn--sm">
-                      进入等待室
+                      {order.status === 'pending_confirm'
+                        ? '查看确认进度'
+                        : '进入等待室'}
                     </Link>
                   )}
                   {order.status === 'in_progress' && (
@@ -106,10 +108,10 @@ export function OrdersPage() {
                   )}
                   {order.status === 'refunded' && (
                     <Link
-                      to={`/checkout/${order.momentId}`}
+                      to={`/moment/${order.momentId}`}
                       className="btn btn--primary btn--sm"
                     >
-                      重新下单
+                      重新预约
                     </Link>
                   )}
                 </div>

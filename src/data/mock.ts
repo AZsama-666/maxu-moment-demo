@@ -1,6 +1,15 @@
+import type { ScheduleConfig } from '../utils/bookingSlots';
+import {
+  formatEarliestCapsule,
+  getEarliestBookable,
+  migrateScheduleFields,
+  type BookableSlot,
+} from '../utils/bookingSlots';
+
 export type InteractionForm = 'voice' | 'video';
 export type SkuType = InteractionForm | 'companion';
 
+/** @deprecated 运行时由 bookingSlots 生成，仅保留类型兼容 */
 export type Slot = {
   id: string;
   label: string;
@@ -20,7 +29,7 @@ export type Provider = {
   bio: string;
 };
 
-export type MomentItem = {
+export type MomentItem = ScheduleConfig & {
   id: string;
   title: string;
   providerId: string;
@@ -30,19 +39,21 @@ export type MomentItem = {
   durationSec: number;
   priceYuan: number;
   statusLabel: string;
-  slots: Slot[];
-  /** 是否接受「尽快」订单（能力） */
-  asapEnabled: boolean;
-  /** 是否暂停接单（临时）；不影响预约档期 */
-  acceptingPaused: boolean;
   fulfilledCount: number;
-  avgResponseMin: number;
+  /** @deprecated 不再用于买家展示 */
+  avgResponseMin?: number;
+  /** @deprecated 使用 bookingOpen */
+  asapEnabled?: boolean;
+  /** @deprecated 使用 bookingOpen */
+  acceptingPaused?: boolean;
+  /** @deprecated 使用 bookingSlots 引擎 */
+  slots?: Slot[];
 };
 
 export type CategoryKey = '1v1' | 'group' | 'transfer';
 
 export const categories: { key: CategoryKey; label: string; hint: string }[] = [
-  { key: '1v1', label: '1V1', hint: '平台履约 · 尽快 / 预约' },
+  { key: '1v1', label: '1V1', hint: '平台履约 · 预约时间' },
   { key: 'group', label: '组局 / 陪玩', hint: '线下履约 · 双方确认交割' },
   { key: 'transfer', label: '转约', hint: '规则占位，首期不开放交易' },
 ];
@@ -54,7 +65,6 @@ export const marketFilters: { key: 'all' | CategoryKey; label: string }[] = [
 ];
 
 export const SELF_PROVIDER_ID = 'p-self';
-export const ASAP_SLOT_ID = 'asap';
 
 export const providers: Provider[] = [
   {
@@ -108,35 +118,39 @@ export function providerHeroUrl(
   return provider.coverUrl || provider.avatarUrl;
 }
 
-/** 当前是否在接 ASAP（派生，供给内部用） */
-export function isAcceptingNow(m: Pick<MomentItem, 'asapEnabled' | 'acceptingPaused'>): boolean {
-  return m.asapEnabled && !m.acceptingPaused;
+export function normalizeMomentSchedule(m: MomentItem): MomentItem {
+  const schedule = migrateScheduleFields(m);
+  return { ...m, ...schedule };
 }
 
-/** 买家视角的可约性：尽快 / 最早档期 / 已约满 */
+/** 买家视角的可约性 */
 export type BuyerAvailability =
-  | { kind: 'now'; waitMin: number }
-  | { kind: 'slot'; earliestLabel: string }
+  | { kind: 'available'; earliestAt: Date; earliestLabel: string }
   | { kind: 'full' };
 
 export function buyerAvailability(
-  m: Pick<MomentItem, 'asapEnabled' | 'acceptingPaused' | 'slots' | 'avgResponseMin'>,
+  m: MomentItem,
+  now = new Date(),
+  getRemaining?: (momentId: string, slotId: string) => number,
 ): BuyerAvailability {
-  if (isAcceptingNow(m)) {
-    return { kind: 'now', waitMin: Math.max(1, m.avgResponseMin || 5) };
-  }
-  const first = m.slots.find((s) => s.remaining > 0);
-  if (first) return { kind: 'slot', earliestLabel: first.label };
-  return { kind: 'full' };
+  const config = migrateScheduleFields(m);
+  if (!config.bookingOpen) return { kind: 'full' };
+  const earliest = getEarliestBookable(m.id, config, now, getRemaining);
+  if (!earliest) return { kind: 'full' };
+  return {
+    kind: 'available',
+    earliestAt: new Date(earliest.startMs),
+    earliestLabel: formatEarliestCapsule(new Date(earliest.startMs), now),
+  };
 }
 
-/** 买家语言的状态标签，全站不出现「暂停」等供给术语 */
 export function computeStatusLabel(
-  m: Pick<MomentItem, 'asapEnabled' | 'acceptingPaused' | 'slots' | 'avgResponseMin'>,
+  m: MomentItem,
+  now = new Date(),
+  getRemaining?: (momentId: string, slotId: string) => number,
 ): string {
-  const a = buyerAvailability(m);
-  if (a.kind === 'now') return `尽快·平均响应时长${a.waitMin}分钟`;
-  if (a.kind === 'slot') return `最早 ${a.earliestLabel}`;
+  const a = buyerAvailability(m, now, getRemaining);
+  if (a.kind === 'available') return `最早 ${a.earliestLabel} 可约`;
   return '已约满';
 }
 
@@ -147,19 +161,18 @@ export const moments: MomentItem[] = [
     providerId: 'p-aurora',
     form: 'voice',
     sceneTag: '语音互动',
-    description: '长期开放的语音专属时刻，支持尽快接单或预约档期。',
+    description: '长期开放的语音专属时刻，按预约时间准时履约。',
     durationSec: 60,
     priceYuan: 9.9,
-    statusLabel: '尽快·平均响应时长4分钟',
-    asapEnabled: true,
-    acceptingPaused: false,
+    statusLabel: '',
     fulfilledCount: 128,
-    avgResponseMin: 4,
-    slots: [
-      { id: 'sv-1', label: '今天 20:00', startAt: 'today-20:00', remaining: 5 },
-      { id: 'sv-2', label: '今天 21:00', startAt: 'today-21:00', remaining: 3 },
-      { id: 'sv-3', label: '明天 19:30', startAt: 'tomorrow-19:30', remaining: 8 },
-    ],
+    bufferMin: 15,
+    slotIntervalMin: 30,
+    availFrom: '09:00',
+    availTo: '22:00',
+    bookableDays: 7,
+    bookingOpen: true,
+    slotCapacity: 5,
   },
   {
     id: 'm-aurora-video-60',
@@ -167,19 +180,18 @@ export const moments: MomentItem[] = [
     providerId: 'p-aurora',
     form: 'video',
     sceneTag: '视频互动',
-    description: 'Aurora 的视频专属时刻，可尽快接单，也可预约档期。',
+    description: 'Aurora 的视频专属时刻，按预约时间准时履约。',
     durationSec: 60,
     priceYuan: 19.9,
-    statusLabel: '尽快·平均响应时长4分钟',
-    asapEnabled: true,
-    acceptingPaused: false,
+    statusLabel: '',
     fulfilledCount: 64,
-    avgResponseMin: 4,
-    slots: [
-      { id: 'av-1', label: '今天 20:30', startAt: 'today-20:30', remaining: 4 },
-      { id: 'av-2', label: '今天 22:00', startAt: 'today-22:00', remaining: 2 },
-      { id: 'av-3', label: '明天 20:00', startAt: 'tomorrow-20:00', remaining: 6 },
-    ],
+    bufferMin: 15,
+    slotIntervalMin: 30,
+    availFrom: '09:00',
+    availTo: '22:00',
+    bookableDays: 7,
+    bookingOpen: true,
+    slotCapacity: 5,
   },
   {
     id: 'm-video-60',
@@ -187,21 +199,23 @@ export const moments: MomentItem[] = [
     providerId: 'p-nova',
     form: 'video',
     sceneTag: '视频互动',
-    description: '长期开放的视频专属时刻，档期清晰，也可尽快接单。',
+    description: '长期开放的视频专属时刻，需确认后锁定预约。',
     durationSec: 60,
     priceYuan: 19.9,
-    statusLabel: '最早 今天 20:30',
-    asapEnabled: true,
-    acceptingPaused: true,
+    statusLabel: '',
     fulfilledCount: 86,
-    avgResponseMin: 12,
-    slots: [
-      { id: 'vd-1', label: '今天 20:30', startAt: 'today-20:30', remaining: 4 },
-      { id: 'vd-2', label: '今天 22:00', startAt: 'today-22:00', remaining: 2 },
-      { id: 'vd-3', label: '明天 20:00', startAt: 'tomorrow-20:00', remaining: 6 },
-    ],
+    bufferMin: 90,
+    slotIntervalMin: 30,
+    availFrom: '10:00',
+    availTo: '22:00',
+    bookableDays: 7,
+    bookingOpen: true,
+    slotCapacity: 4,
   },
-];
+].map((m) => ({
+  ...m,
+  statusLabel: computeStatusLabel(m as MomentItem),
+})) as MomentItem[];
 
 export function getProvider(id: string) {
   return providers.find((p) => p.id === id);
@@ -211,7 +225,4 @@ export function getMoment(id: string) {
   return moments.find((m) => m.id === id);
 }
 
-export function getSlot(momentId: string, slotId: string) {
-  const moment = getMoment(momentId);
-  return moment?.slots.find((s) => s.id === slotId);
-}
+export type { BookableSlot, ScheduleConfig };

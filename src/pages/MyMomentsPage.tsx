@@ -1,7 +1,5 @@
 import { Link } from 'react-router-dom';
 import { PageHeader } from '../components/PageHeader';
-import { isAcceptingNow } from '../data/mock';
-import { ASAP_SLA_MIN } from '../state/orderStore';
 import { useSupplyTasks } from '../state/supplyTasks';
 import {
   useSupplyListings,
@@ -49,7 +47,7 @@ export function MyMomentsPage() {
             <Link to="/profile/my-moments/tasks" className="supply-task-banner">
               <span>
                 <strong>{tasks.total} 项待处理</strong>
-                <small>实时订单、待履约或待确认交割</small>
+                <small>待确认预约、待履约或待确认交割</small>
               </span>
               <span>去处理 ›</span>
             </Link>
@@ -95,9 +93,9 @@ function SupplySkuCard({
   listing: SupplyListing;
   tasks: ReturnType<typeof useSupplyTasks>;
 }) {
-  const pending1v1 =
+  const pendingConfirm =
     listing.kind === '1v1'
-      ? tasks.pendingAccept.filter((order) => order.momentId === listing.id).length
+      ? tasks.pendingConfirm.filter((order) => order.momentId === listing.id).length
       : 0;
   const pendingCompanion =
     listing.kind === 'companion'
@@ -112,29 +110,24 @@ function SupplySkuCard({
   if (listing.status === 'offline') {
     stateText = '已下架，买家暂时看不到';
     action = { label: '去管理', to: `/profile/my-moments/${listing.id}/manage` };
-  } else if (pending1v1 > 0) {
-    stateText = `有 ${pending1v1} 笔实时订单等待接单`;
-    action = { label: '去接单', to: '/profile/my-moments/tasks' };
+  } else if (pendingConfirm > 0) {
+    stateText = `有 ${pendingConfirm} 笔预约等待确认`;
+    action = { label: '去确认', to: '/profile/my-moments/tasks' };
   } else if (pendingCompanion > 0) {
     stateText = `有 ${pendingCompanion} 笔服务等待确认交割`;
     action = { label: '去确认', to: '/profile/my-moments/tasks' };
   } else if (listing.kind === 'companion') {
     stateText = `${listing.serviceTime} · ${listing.placeLabel} · 剩 ${listing.remaining} 席`;
-  } else if (isAcceptingNow(listing)) {
-    stateText = `正在接实时订单，收到后请在 ${ASAP_SLA_MIN} 分钟内响应`;
-  } else if (listing.asapEnabled && listing.acceptingPaused) {
-    stateText =
-      listing.slots.length > 0
-        ? '实时接单已暂停，预约档期仍可购买'
-        : '实时接单已暂停';
+  } else if (!listing.bookingOpen) {
+    stateText = '已暂停可约';
     action = {
-      label: '恢复实时接单',
+      label: '恢复可约',
       to: `/profile/my-moments/${listing.id}/manage`,
     };
   } else {
-    stateText = `当前仅开放预约${listing.slots[0] ? ` · ${listing.slots[0].label}` : ''}`;
+    stateText = listing.statusLabel;
     action = {
-      label: '管理档期',
+      label: '管理排期',
       to: `/profile/my-moments/${listing.id}/manage`,
     };
   }

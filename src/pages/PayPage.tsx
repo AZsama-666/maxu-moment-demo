@@ -54,11 +54,7 @@ export function PayPage() {
             setError('支付失败：名额可能已售罄');
             return;
           }
-          if (order.timing === 'asap') {
-            navigate(`/pending-accept/${order.id}`);
-          } else {
-            navigate(`/waiting/${order.id}`);
-          }
+          navigate(`/waiting/${order.id}`);
         }}
       >
         支付成功

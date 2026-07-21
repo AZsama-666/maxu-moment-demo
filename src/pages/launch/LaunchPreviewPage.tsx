@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { PageHeader } from '../../components/PageHeader';
 import { SupplyLaunchProgress } from '../../components/SupplyLaunchProgress';
+import { computeStatusLabel } from '../../data/mock';
 import {
   clearLaunchDraft,
+  draftScheduleConfig,
   useLaunchDraft,
 } from '../../state/launchDraftStore';
 import {
@@ -12,11 +14,35 @@ import {
   getSupplyListing,
   updateCompanionSupply,
 } from '../../state/supplyStore';
+import {
+  getEarliestBookable,
+  scheduleFromDraft,
+} from '../../utils/bookingSlots';
 
 export function LaunchPreviewPage() {
   const navigate = useNavigate();
   const draft = useLaunchDraft();
   const [submitting, setSubmitting] = useState(false);
+
+  const previewLabel = useMemo(() => {
+    if (draft.skuType === 'companion') return draft.serviceTime;
+    const config = scheduleFromDraft(draftScheduleConfig(draft));
+    const earliest = getEarliestBookable('preview', config);
+    if (!earliest) return draft.bookingOpen ? '已约满' : '暂停可约';
+    return computeStatusLabel({
+      id: 'preview',
+      title: '',
+      providerId: '',
+      form: draft.skuType === 'video' ? 'video' : 'voice',
+      sceneTag: '',
+      description: '',
+      durationSec: draft.durationSec,
+      priceYuan: draft.priceYuan,
+      statusLabel: '',
+      fulfilledCount: 0,
+      ...config,
+    }).replace('最早 ', '').replace(' 可约', '');
+  }, [draft]);
 
   if (!draft.skuType || !draft.title || draft.priceYuan <= 0) {
     return <Navigate to="/profile/my-moments/launch/type" replace />;
@@ -24,7 +50,6 @@ export function LaunchPreviewPage() {
 
   const skuType = draft.skuType;
   const isCompanion = skuType === 'companion';
-  const hasSlots = draft.slots.length > 0;
 
   const publish = () => {
     if (submitting) return;
@@ -61,14 +86,14 @@ export function LaunchPreviewPage() {
           }).id;
         }
       } else {
+        const schedule = draftScheduleConfig(draft);
         id = createSupplyMoment({
           form: skuType,
           title: draft.title,
           description: draft.description,
           durationSec: draft.durationSec,
           priceYuan: draft.priceYuan,
-          slots: draft.slots,
-          asapEnabled: draft.realtimeEnabled,
+          ...schedule,
         }).id;
       }
       clearLaunchDraft();
@@ -103,25 +128,24 @@ export function LaunchPreviewPage() {
             <strong>玛薯</strong>
             <span className="badge">已认证</span>
             <span className="moment-card__wait">
-              {isCompanion
-                ? draft.serviceTime
-                : draft.realtimeEnabled
-                  ? '新发布'
-                  : `最早 ${draft.slots[0]?.label ?? '待设置'}`}
+              {isCompanion ? draft.serviceTime : `最早 ${previewLabel} 可约`}
             </span>
           </div>
           <div className="moment-card__title">{draft.title}</div>
           <div className="moment-card__meta">
             {isCompanion ? (
               <>
-                <span>陪玩</span><span>·</span>
-                <span>{draft.placeLabel}</span><span>·</span>
+                <span>陪玩</span>
+                <span>·</span>
+                <span>{draft.placeLabel}</span>
+                <span>·</span>
                 <span>剩 {draft.seats} 席</span>
               </>
             ) : (
               <>
                 <span>{draft.skuType === 'voice' ? '语音互动' : '视频互动'}</span>
-                <span>·</span><span>{draft.durationSec} 秒/份</span>
+                <span>·</span>
+                <span>{draft.durationSec} 秒/份</span>
               </>
             )}
           </div>
@@ -134,10 +158,7 @@ export function LaunchPreviewPage() {
             ) : (
               <>
                 <span className="trust-chip muted-chip">1V1</span>
-                {draft.realtimeEnabled && <span className="trust-chip">尽快</span>}
-                {!draft.realtimeEnabled && hasSlots && (
-                  <span className="trust-chip">可预约</span>
-                )}
+                <span className="trust-chip">可预约</span>
                 <span className="trust-chip muted-chip">
                   {draft.skuType === 'voice' ? '语音' : '视频'}
                 </span>
@@ -151,7 +172,7 @@ export function LaunchPreviewPage() {
       <div className="info-callout" style={{ marginTop: 12 }}>
         {isCompanion
           ? '陪玩按约定完成服务，结束后由双方确认交割。'
-          : '1V1 由平台内语音/视频完成履约。'}
+          : '1V1 由平台内语音/视频完成履约，买家在详情页选择具体时段。'}
       </div>
 
       <div className="launch-bottom">

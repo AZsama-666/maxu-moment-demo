@@ -1,16 +1,12 @@
 import { Link } from 'react-router-dom';
-import type { GroupListing, PersonListing, TransferListing } from '../data/marketMock';
+import type { PersonListing, TransferListing } from '../data/marketMock';
 
 export function PersonCard({ person }: { person: PersonListing }) {
-  const waitLabel = person.hasAsap
-    ? person.waitMin && person.waitMin > 0
-      ? `平均响应时长${person.waitMin}分钟`
-      : '新发布'
-    : person.earliestLabel
-      ? `最早 ${person.earliestLabel}`
-      : person.hasGroup
-        ? '可组局 / 陪玩'
-        : '看看 TA 的 Moment';
+  const waitLabel = person.earliestLabel
+    ? `最早 ${person.earliestLabel} 可约`
+    : person.hasGroup
+      ? '可组局 / 陪玩'
+      : '看看 TA 的 Moment';
 
   return (
     <Link to={`/ta/${person.providerId}`} className="moment-card">
@@ -47,7 +43,9 @@ export function PersonCard({ person }: { person: PersonListing }) {
               {tag}
             </span>
           ))}
-          {person.hasAsap && <span className="trust-chip">尽快</span>}
+          {person.within15Min && (
+            <span className="trust-chip">15分钟内</span>
+          )}
         </div>
         <div className="moment-card__price">
           从 ¥{person.fromPriceYuan.toFixed(person.fromPriceYuan % 1 ? 1 : 0)}
@@ -57,7 +55,7 @@ export function PersonCard({ person }: { person: PersonListing }) {
   );
 }
 
-export function GroupCard({ listing }: { listing: GroupListing }) {
+export function GroupCard({ listing }: { listing: import('../data/marketMock').GroupListing }) {
   return (
     <Link to={`/group/${listing.id}`} className="moment-card">
       <div
@@ -80,7 +78,7 @@ export function GroupCard({ listing }: { listing: GroupListing }) {
       <div className="moment-card__body">
         <div className="moment-card__row">
           <strong>{listing.hostName}</strong>
-          <span className="moment-card__wait">{listing.whenLabel}</span>
+          <span className="moment-card__wait muted">{listing.whenLabel}</span>
         </div>
         <div className="moment-card__title">{listing.title}</div>
         <div className="moment-card__meta">
@@ -102,23 +100,14 @@ export function GroupCard({ listing }: { listing: GroupListing }) {
 
 export function TransferCard({ listing }: { listing: TransferListing }) {
   return (
-    <Link to={`/transfer/${listing.id}`} className="moment-card moment-card--padded">
-      <div className="avatar avatar--transfer" aria-hidden>
-        转
-      </div>
-      <div className="moment-card__body" style={{ padding: 0 }}>
+    <Link to={`/transfer/${listing.id}`} className="moment-card moment-card--transfer">
+      <div className="moment-card__body moment-card__body--transfer">
         <div className="moment-card__row">
-          <strong>{listing.fromLabel}</strong>
-          <span className="moment-card__wait muted">{listing.statusLabel}</span>
+          <span className="avatar avatar--transfer">转</span>
+          <strong>{listing.title}</strong>
         </div>
-        <div className="moment-card__title">{listing.title}</div>
-        <div className="moment-card__meta">
-          <span>{listing.ruleHint}</span>
-        </div>
-        <div className="moment-card__trust">
-          <span className="trust-chip muted-chip">转约</span>
-          <span className="trust-chip muted-chip">即将开放</span>
-        </div>
+        <p className="muted">{listing.ruleHint}</p>
+        <span className="moment-card__wait">{listing.statusLabel}</span>
       </div>
     </Link>
   );

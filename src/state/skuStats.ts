@@ -1,8 +1,12 @@
 import type { InteractionForm, MomentItem } from '../data/mock';
-import type { Order } from './orderStore';
+import {
+  listAllBookableSlots,
+  migrateScheduleFields,
+} from '../utils/bookingSlots';
+import { getRemainingStock, type Order } from './orderStore';
 
 export type SkuFulfillmentStats = {
-  pendingAccept: number;
+  pendingConfirm: number;
   waitingFulfill: number;
   inProgress: number;
   completedToday: number;
@@ -19,17 +23,23 @@ export function getSkuFulfillmentStats(
   startOfDay.setHours(0, 0, 0, 0);
   const dayTs = startOfDay.getTime();
 
+  let slotRemaining = 0;
+  if (listing) {
+    slotRemaining = listAllBookableSlots(
+      listing.id,
+      migrateScheduleFields(listing),
+      new Date(),
+      getRemainingStock,
+    ).reduce((n, slot) => n + slot.remaining, 0);
+  }
+
   return {
-    pendingAccept: mine.filter((o) => o.status === 'pending_accept').length,
-    waitingFulfill: mine.filter(
-      (o) => o.status === 'accepted' || o.status === 'booked',
-    ).length,
+    pendingConfirm: mine.filter((o) => o.status === 'pending_confirm').length,
+    waitingFulfill: mine.filter((o) => o.status === 'booked').length,
     inProgress: mine.filter((o) => o.status === 'in_progress').length,
     completedToday: mine.filter(
       (o) => o.status === 'completed' && o.createdAt >= dayTs,
     ).length,
-    slotRemaining: listing
-      ? listing.slots.reduce((n, s) => n + s.remaining, 0)
-      : 0,
+    slotRemaining,
   };
 }

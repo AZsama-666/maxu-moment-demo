@@ -4,7 +4,7 @@ import { useOrders, type Order } from './orderStore';
 import { useSupplyListings } from './supplyStore';
 
 export type SupplyTaskSummary = {
-  pendingAccept: Order[];
+  pendingConfirm: Order[];
   upcoming: Order[];
   companionConfirm: GroupOrder[];
   total: number;
@@ -19,12 +19,11 @@ export function buildSupplyTasks(
     (order) =>
       order.providerId === SELF_PROVIDER_ID && ownListingIds.has(order.momentId),
   );
-  const pendingAccept = ownOrders.filter(
-    (order) => order.status === 'pending_accept',
+  const pendingConfirm = ownOrders.filter(
+    (order) => order.status === 'pending_confirm',
   );
   const upcoming = ownOrders.filter(
     (order) =>
-      order.status === 'accepted' ||
       order.status === 'booked' ||
       order.status === 'in_progress',
   );
@@ -35,10 +34,10 @@ export function buildSupplyTasks(
       !order.hostConfirmed,
   );
   return {
-    pendingAccept,
+    pendingConfirm,
     upcoming,
     companionConfirm,
-    total: pendingAccept.length + upcoming.length + companionConfirm.length,
+    total: pendingConfirm.length + upcoming.length + companionConfirm.length,
   };
 }
 

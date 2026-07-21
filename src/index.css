@@ -2149,6 +2149,120 @@ button:active:not(:disabled) {
   font-size: 11px;
 }
 
+.task-card__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.booking-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.book-date-row,
+.book-time-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+.book-date-chip,
+.book-time-chip {
+  flex: 0 0 auto;
+  min-width: 72px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+  text-align: center;
+  scroll-snap-align: start;
+  font: inherit;
+  cursor: pointer;
+}
+
+.book-date-chip strong,
+.book-time-chip strong {
+  display: block;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.book-date-chip span,
+.book-time-chip span {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+}
+
+.book-date-chip--active,
+.book-time-chip--active {
+  border-color: var(--accent);
+  background: #eefbf7;
+  box-shadow: 0 0 0 1px rgba(18, 184, 154, 0.15);
+}
+
+.book-time-chip--full {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.book-time-chip--more {
+  min-width: 88px;
+}
+
+.book-time-row--preview {
+  flex-wrap: wrap;
+  overflow: visible;
+}
+
+.book-time-collapse {
+  margin-top: 4px;
+}
+
+.segment-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.segment-btn {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.segment-btn--active {
+  border-color: var(--accent);
+  background: #eefbf7;
+  color: var(--accent-strong);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.waiting-countdown {
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-strong);
+}
+
+.rules-bar--warn {
+  background: #fff8eb;
+  border-color: rgba(228, 157, 35, 0.35);
+}
+
 @media (max-width: 430px) {
   .app-root {
     padding: 0;

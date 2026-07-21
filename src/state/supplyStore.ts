@@ -2,11 +2,13 @@ import { useSyncExternalStore } from 'react';
 import {
   SELF_PROVIDER_ID,
   computeStatusLabel,
+  normalizeMomentSchedule,
   type InteractionForm,
   type MomentItem,
   type SkuType,
-  type Slot,
 } from '../data/mock';
+import { DEFAULT_SLOT_CAPACITY, migrateScheduleFields } from '../utils/bookingSlots';
+import { getRemainingStock } from './orderStore';
 
 export type SupplyStatus = 'open' | 'offline';
 
@@ -41,8 +43,12 @@ export type CreateMomentInput = {
   description?: string;
   durationSec: number;
   priceYuan: number;
-  slots: { label: string; remaining: number }[];
-  asapEnabled: boolean;
+  bufferMin: number;
+  slotIntervalMin: number;
+  availFrom: string;
+  availTo: string;
+  bookableDays: number;
+  bookingOpen: boolean;
 };
 
 export type CreateCompanionInput = {
@@ -56,18 +62,22 @@ export type CreateCompanionInput = {
 };
 
 export type UpdateSupplyInput = {
-  asapEnabled?: boolean;
-  acceptingPaused?: boolean;
+  bookingOpen?: boolean;
   status?: SupplyStatus;
-  slots?: Slot[];
+  bufferMin?: number;
+  slotIntervalMin?: number;
+  availFrom?: string;
+  availTo?: string;
+  bookableDays?: number;
   priceYuan?: number;
   title?: string;
   description?: string;
   durationSec?: number;
 };
 
-const STORAGE_KEY = 'maxu-moment-demo-supply-v4';
+const STORAGE_KEY = 'maxu-moment-demo-supply-v5';
 const LEGACY_KEYS = [
+  'maxu-moment-demo-supply-v4',
   'maxu-moment-demo-supply-v3',
   'maxu-moment-demo-supply-v2',
 ];
@@ -107,22 +117,30 @@ function normalizeListing(
     };
   }
 
-  const legacy = listing as OneToOneSupplyListing & { online?: boolean };
-  const acceptingPaused =
-    legacy.acceptingPaused ??
-    (typeof legacy.online === 'boolean' ? !legacy.online : false);
-  const base = {
+  const legacy = listing as OneToOneSupplyListing & {
+    online?: boolean;
+    asapEnabled?: boolean;
+    acceptingPaused?: boolean;
+  };
+  const schedule = migrateScheduleFields(legacy);
+  const bookingOpen =
+    legacy.status === 'offline'
+      ? false
+      : (legacy.bookingOpen ?? schedule.bookingOpen);
+  const base = normalizeMomentSchedule({
     ...legacy,
-    kind: '1v1' as const,
-    asapEnabled: legacy.asapEnabled ?? true,
-    acceptingPaused,
+    ...schedule,
+    bookingOpen,
     fulfilledCount: legacy.fulfilledCount ?? 0,
-    avgResponseMin: legacy.avgResponseMin ?? 0,
-    slots: legacy.slots ?? [],
+    slotCapacity: legacy.slotCapacity ?? DEFAULT_SLOT_CAPACITY,
+  });
+  return {
+    ...base,
+    kind: '1v1' as const,
     status: legacy.status ?? 'open',
     createdAt: legacy.createdAt ?? Date.now(),
+    statusLabel: computeStatusLabel(base, new Date(), getRemainingStock),
   };
-  return { ...base, statusLabel: computeStatusLabel(base) };
 }
 
 function persist() {
@@ -145,7 +163,10 @@ function getSnapshot() {
 
 function toMomentItem(listing: OneToOneSupplyListing): MomentItem {
   const { status: _status, createdAt: _createdAt, kind: _kind, ...item } = listing;
-  return { ...item, statusLabel: computeStatusLabel(listing) };
+  return {
+    ...item,
+    statusLabel: computeStatusLabel(listing, new Date(), getRemainingStock),
+  };
 }
 
 export function createSupplyMoment(input: CreateMomentInput): OneToOneSupplyListing {
@@ -154,12 +175,6 @@ export function createSupplyMoment(input: CreateMomentInput): OneToOneSupplyList
       listing.kind === '1v1' && listing.form === input.form,
   );
   const id = existing?.id ?? `m-self-${Date.now()}`;
-  const slots: Slot[] = input.slots.map((slot, index) => ({
-    id: `${id}-s${index + 1}`,
-    label: slot.label,
-    startAt: `slot-${index + 1}`,
-    remaining: slot.remaining,
-  }));
 
   const listing: OneToOneSupplyListing = {
     kind: '1v1',
@@ -171,20 +186,23 @@ export function createSupplyMoment(input: CreateMomentInput): OneToOneSupplyList
     description:
       input.description?.trim() ||
       (input.form === 'voice'
-        ? '长期开放的语音专属时刻，支持实时接单或预约档期。'
-        : '长期开放的视频专属时刻，支持实时接单或预约档期。'),
+        ? '长期开放的语音专属时刻，按预约时间准时履约。'
+        : '长期开放的视频专属时刻，按预约时间准时履约。'),
     durationSec: input.durationSec,
     priceYuan: input.priceYuan,
-    slots,
-    asapEnabled: input.asapEnabled,
-    acceptingPaused: false,
+    bufferMin: input.bufferMin,
+    slotIntervalMin: input.slotIntervalMin,
+    availFrom: input.availFrom,
+    availTo: input.availTo,
+    bookableDays: input.bookableDays,
+    bookingOpen: input.bookingOpen,
+    slotCapacity: existing?.slotCapacity ?? DEFAULT_SLOT_CAPACITY,
     fulfilledCount: existing?.fulfilledCount ?? 0,
-    avgResponseMin: existing?.avgResponseMin ?? 0,
     statusLabel: '',
     status: existing?.status ?? 'open',
     createdAt: existing?.createdAt ?? Date.now(),
   };
-  listing.statusLabel = computeStatusLabel(listing);
+  listing.statusLabel = computeStatusLabel(listing, new Date(), getRemainingStock);
 
   snapshot = {
     listings: existing
@@ -223,10 +241,14 @@ export function updateSupplyMoment(id: string, patch: UpdateSupplyInput) {
   snapshot = {
     listings: snapshot.listings.map((listing) => {
       if (listing.id !== id || listing.kind !== '1v1') return listing;
-      const next = { ...listing, ...patch };
-      if (patch.status === 'offline') next.acceptingPaused = true;
-      if (patch.status === 'open' && !next.asapEnabled) next.acceptingPaused = false;
-      next.statusLabel = computeStatusLabel(next);
+      const next = normalizeListing({
+        ...listing,
+        ...patch,
+        bookingOpen:
+          patch.status === 'offline'
+            ? false
+            : patch.bookingOpen ?? listing.bookingOpen,
+      });
       return next;
     }),
   };
@@ -253,28 +275,25 @@ export function setSupplyStatus(id: string, status: SupplyStatus) {
   if (listing.kind === '1v1') {
     updateSupplyMoment(id, {
       status,
-      acceptingPaused: status === 'offline',
+      bookingOpen: status === 'open' ? listing.bookingOpen : false,
     });
   } else {
     updateCompanionSupply(id, { status });
   }
 }
 
-export function recordSupplyResponse(momentId: string, responseMin: number) {
+export function recordSupplyResponse(momentId: string, _responseMin: number) {
   snapshot = {
     listings: snapshot.listings.map((listing) => {
       if (listing.id !== momentId || listing.kind !== '1v1') return listing;
-      const nextCount = listing.fulfilledCount + 1;
-      const previousTotal = listing.avgResponseMin * listing.fulfilledCount;
-      const avgResponseMin = Math.round(
-        (previousTotal + responseMin) / Math.max(1, nextCount),
-      );
       const next = {
         ...listing,
-        fulfilledCount: nextCount,
-        avgResponseMin: Math.max(1, avgResponseMin),
+        fulfilledCount: listing.fulfilledCount + 1,
       };
-      return { ...next, statusLabel: computeStatusLabel(next) };
+      return {
+        ...next,
+        statusLabel: computeStatusLabel(next, new Date(), getRemainingStock),
+      };
     }),
   };
   emit();
@@ -282,8 +301,7 @@ export function recordSupplyResponse(momentId: string, responseMin: number) {
 
 type StaticMetric = {
   fulfilledCount: number;
-  avgResponseMin: number;
-  acceptingPaused: boolean;
+  bookingOpen?: boolean;
 };
 
 const staticMetrics: Record<string, StaticMetric> = {};
@@ -294,29 +312,24 @@ export function getStaticMetricOverrides(momentId: string) {
 
 export function recordStaticResponse(
   momentId: string,
-  base: StaticMetric,
-  responseMin: number,
+  base: { fulfilledCount: number },
+  _responseMin: number,
 ) {
-  const current = staticMetrics[momentId] ?? { ...base };
-  const nextCount = current.fulfilledCount + 1;
-  const avg = Math.round(
-    (current.avgResponseMin * current.fulfilledCount + responseMin) / nextCount,
-  );
+  const current = staticMetrics[momentId] ?? { fulfilledCount: base.fulfilledCount };
   staticMetrics[momentId] = {
     ...current,
-    fulfilledCount: nextCount,
-    avgResponseMin: Math.max(1, avg),
+    fulfilledCount: current.fulfilledCount + 1,
   };
   emit();
 }
 
-export function setStaticPaused(
+export function setStaticBookingOpen(
   momentId: string,
-  acceptingPaused: boolean,
-  base: { fulfilledCount: number; avgResponseMin: number },
+  bookingOpen: boolean,
+  base: { fulfilledCount: number },
 ) {
-  const current = staticMetrics[momentId] ?? { ...base, acceptingPaused };
-  staticMetrics[momentId] = { ...current, acceptingPaused };
+  const current = staticMetrics[momentId] ?? { fulfilledCount: base.fulfilledCount };
+  staticMetrics[momentId] = { ...current, bookingOpen };
   emit();
 }
 

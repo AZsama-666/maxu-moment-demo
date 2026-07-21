@@ -1,7 +1,6 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { PageHeader } from '../components/PageHeader';
 import { loadListingIntoDraft } from '../state/launchDraftStore';
-import { ASAP_SLA_MIN } from '../state/orderStore';
 import {
   getSupplyListing,
   setSupplyStatus,
@@ -48,21 +47,21 @@ export function SupplyManagePage() {
         <p className="muted">
           {listing.kind === 'companion'
             ? `${listing.unitLabel} · ${listing.serviceTime}`
-            : `${listing.durationSec} 秒/份`}
+            : `${listing.durationSec} 秒/份 · ${listing.statusLabel}`}
           {' · '}¥{listing.priceYuan.toFixed(1)}
         </p>
       </div>
 
-      {listing.kind === '1v1' && listing.asapEnabled && listing.status === 'open' && (
+      {listing.kind === '1v1' && listing.status === 'open' && (
         <section className="section">
-          <h3 className="section__title">实时接单</h3>
+          <h3 className="section__title">可约状态</h3>
           <div className="manage-row">
             <span>
-              <strong>{listing.acceptingPaused ? '已暂停' : '正在接单'}</strong>
+              <strong>{listing.bookingOpen ? '开放可约' : '已暂停可约'}</strong>
               <small>
-                {listing.acceptingPaused
-                  ? '预约档期仍可被购买'
-                  : `收到尽快单后需在 ${ASAP_SLA_MIN} 分钟内响应`}
+                {listing.bookingOpen
+                  ? `T+${listing.bufferMin} 分钟起 · 间隔 ${listing.slotIntervalMin} 分钟`
+                  : '买家暂时看不到可约时间'}
               </small>
             </span>
             <button
@@ -70,11 +69,11 @@ export function SupplyManagePage() {
               className="btn btn--ghost btn--sm"
               onClick={() =>
                 updateSupplyMoment(listing.id, {
-                  acceptingPaused: !listing.acceptingPaused,
+                  bookingOpen: !listing.bookingOpen,
                 })
               }
             >
-              {listing.acceptingPaused ? '恢复实时接单' : '暂停实时接单'}
+              {listing.bookingOpen ? '暂停可约' : '恢复可约'}
             </button>
           </div>
         </section>
@@ -93,8 +92,8 @@ export function SupplyManagePage() {
             }}
           >
             <span>
-              <strong>商品、价格与履约设置</strong>
-              <small>编辑后会进入预览再保存</small>
+              <strong>商品、价格与排期设置</strong>
+              <small>编辑 N / 间隔 / 可约时段后会进入预览再保存</small>
             </span>
             <span>›</span>
           </button>

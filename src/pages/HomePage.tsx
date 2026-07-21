@@ -12,10 +12,10 @@ import { useOpenSupplyMoments } from '../state/supplyStore';
 export function HomePage() {
   useOpenSupplyMoments();
   const [category, setCategory] = useState<'all' | CategoryKey>('all');
-  const [onlyNow, setOnlyNow] = useState(false);
+  const [within15Min, setWithin15Min] = useState(false);
 
   const visible = sortMarketItems(
-    filterMarketItems(listMarketItems(), category, onlyNow),
+    filterMarketItems(listMarketItems(), category, within15Min),
   );
 
   return (
@@ -46,17 +46,17 @@ export function HomePage() {
       <div className="filter-row">
         <button
           type="button"
-          className={`filter-chip ${onlyNow ? 'filter-chip--active' : ''}`}
-          onClick={() => setOnlyNow((v) => !v)}
+          className={`filter-chip ${within15Min ? 'filter-chip--active' : ''}`}
+          onClick={() => setWithin15Min((v) => !v)}
         >
-          只看可尽快
+          15分钟内可约
         </button>
       </div>
 
       {visible.length === 0 ? (
         <p className="empty">
-          {onlyNow
-            ? '暂时没有可尽快的供给，关掉筛选看看其他卡片吧'
+          {within15Min
+            ? '暂时没有 15 分钟内可约的供给，关掉筛选看看其他卡片吧'
             : '该分类暂无供给'}
         </p>
       ) : (
