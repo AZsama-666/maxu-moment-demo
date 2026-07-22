@@ -10,14 +10,16 @@ npm install
 npm run dev
 ```
 
-浏览器打开终端提示的地址（默认 `http://localhost:5173/moment/`）。
+浏览器打开终端提示的地址（默认 `http://localhost:5173/`；子路径部署见下方 `VITE_BASE`）。
 
 ## 演示路径
 
-1. 底部 **Moment** → 选择「60 秒语音」或「60 秒视频」
-2. 选档期 → 确认预约 → Mock 支付成功
-3. 等待室点「模拟到点 · 进入履约」
+1. 底部 **Moment** → 选人卡片 → TA 页 → 选 1V1 Moment
+2. 详情页选档期 → **去下单** → **支付成功**
+3. 等待室点 **我已就位** → **双方已就位 · 开始履约**（或到点 **到点 · 进入履约**）
 4. 履约页倒计时结束或点挂断 → 完成页 → 我的订单
+
+UI 产品文档见 [docs/UI_PRODUCT_SPEC.md](./docs/UI_PRODUCT_SPEC.md)。
 
 订单保存在浏览器 `localStorage`，刷新不丢。
 

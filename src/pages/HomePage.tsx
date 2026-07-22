@@ -1,11 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { PersonCard, TransferCard } from '../components/MarketCards';
-import {
-  filterMarketItems,
-  listMarketItems,
-  sortMarketItems,
-} from '../data/marketMock';
+import { GroupActivityFeed } from '../components/GroupActivityFeed';
+import { GroupCard, PersonCard } from '../components/MarketCards';
+import { listHomeFeed } from '../data/marketMock';
 import { marketFilters, type CategoryKey } from '../data/mock';
 import { useOpenSupplyMoments } from '../state/supplyStore';
 
@@ -13,13 +10,12 @@ export function HomePage() {
   useOpenSupplyMoments();
   const [category, setCategory] = useState<'all' | CategoryKey>('all');
   const [within15Min, setWithin15Min] = useState(false);
+  const isGroupTab = category === 'group';
 
-  const visible = sortMarketItems(
-    filterMarketItems(listMarketItems(), category, within15Min),
-  );
+  const feed = isGroupTab ? [] : listHomeFeed(category, within15Min);
 
   return (
-    <div className="page">
+    <div className="page page--home">
       <div className="home-top">
         <div className="search-bar" role="search">
           <span className="search-bar__icon">⌕</span>
@@ -43,30 +39,35 @@ export function HomePage() {
         ))}
       </div>
 
-      <div className="filter-row">
-        <button
-          type="button"
-          className={`filter-chip ${within15Min ? 'filter-chip--active' : ''}`}
-          onClick={() => setWithin15Min((v) => !v)}
-        >
-          15分钟内可约
-        </button>
-      </div>
+      {!isGroupTab && (
+        <div className="filter-row">
+          <button
+            type="button"
+            className={`filter-chip ${within15Min ? 'filter-chip--active' : ''}`}
+            onClick={() => setWithin15Min((v) => !v)}
+          >
+            15分钟内可约
+          </button>
+        </div>
+      )}
 
-      {visible.length === 0 ? (
+      {isGroupTab ? (
+        <GroupActivityFeed />
+      ) : feed.length === 0 ? (
         <p className="empty">
           {within15Min
             ? '暂时没有 15 分钟内可约的供给，关掉筛选看看其他卡片吧'
             : '该分类暂无供给'}
         </p>
       ) : (
-        <div className="stack">
-          {visible.map((item) => {
-            if (item.kind === 'person') {
-              return <PersonCard key={item.providerId} person={item} />;
-            }
-            return <TransferCard key={item.id} listing={item} />;
-          })}
+        <div className="stack stack--feed">
+          {feed.map((item) =>
+            item.kind === 'group' ? (
+              <GroupCard key={item.group.id} listing={item.group} />
+            ) : (
+              <PersonCard key={item.person.providerId} person={item.person} />
+            ),
+          )}
         </div>
       )}
 

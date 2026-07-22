@@ -31,7 +31,7 @@ export function SupplyManagePage() {
   }
 
   const buyerPath =
-    listing.kind === 'companion' ? `/group/${listing.id}` : `/moment/${listing.id}`;
+    listing.kind === 'companion' ? `/companion/${listing.id}` : `/moment/${listing.id}`;
   const upcoming =
     listing.kind === '1v1'
       ? tasks.upcoming.filter((order) => order.momentId === listing.id)

@@ -7,6 +7,9 @@ import { FeedPage } from './pages/FeedPage';
 import { FulfillVideoPage } from './pages/FulfillVideoPage';
 import { FulfillVoicePage } from './pages/FulfillVoicePage';
 import { GroupConfirmPage } from './pages/GroupConfirmPage';
+import { ChatRoomPage } from './pages/ChatRoomPage';
+import { GroupPayPage } from './pages/GroupPayPage';
+import { CompanionDetailPage } from './pages/CompanionDetailPage';
 import { GroupDetailPage } from './pages/GroupDetailPage';
 import { HomePage } from './pages/HomePage';
 import { MessagesPage } from './pages/MessagesPage';
@@ -26,7 +29,6 @@ import { SupplyTasksPage } from './pages/SupplyTasksPage';
 import { SupplyWaitingPage } from './pages/supply/SupplyWaitingPage';
 import { SupplyFulfillVoicePage } from './pages/supply/SupplyFulfillVoicePage';
 import { SupplyFulfillVideoPage } from './pages/supply/SupplyFulfillVideoPage';
-import { TransferPlaceholderPage } from './pages/TransferPlaceholderPage';
 import { WaitingPage } from './pages/WaitingPage';
 import { LaunchFulfillmentPage } from './pages/launch/LaunchFulfillmentPage';
 import { LaunchPreviewPage } from './pages/launch/LaunchPreviewPage';
@@ -47,6 +49,8 @@ export default function App() {
             <Route index element={<HomePage />} />
             <Route path="feed" element={<FeedPage />} />
             <Route path="messages" element={<MessagesPage />} />
+            <Route path="messages/chat/:chatId" element={<ChatRoomPage />} />
+            <Route path="messages/dm/:providerId" element={<ChatRoomPage />} />
             <Route path="publish" element={<PublishPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="profile/orders" element={<OrdersPage />} />
@@ -62,8 +66,9 @@ export default function App() {
             <Route path="category/:key" element={<CategoryPage />} />
             <Route path="moment/:momentId" element={<DetailPage />} />
             <Route path="group/:groupId" element={<GroupDetailPage />} />
+            <Route path="companion/:companionId" element={<CompanionDetailPage />} />
+            <Route path="group-pay/:orderId" element={<GroupPayPage />} />
             <Route path="group-order/:orderId" element={<GroupConfirmPage />} />
-            <Route path="transfer/:transferId" element={<TransferPlaceholderPage />} />
             <Route path="ta/:providerId" element={<TaMomentPage />} />
             <Route path="checkout/:momentId" element={<CheckoutPage />} />
             <Route path="pay/:orderId" element={<PayPage />} />

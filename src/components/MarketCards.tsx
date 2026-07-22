@@ -1,117 +1,115 @@
-import { Link } from 'react-router-dom';
-import type { PersonListing, TransferListing } from '../data/marketMock';
+import { getProvider } from '../data/catalog';
+import type {
+  CompanionListing,
+  GroupListing,
+  PersonListing,
+} from '../data/marketMock';
+import { GroupFeedCard } from './GroupFeedCard';
+import { ProviderFeedCard } from './ProviderFeedCard';
+
+function personTimeLabel(person: PersonListing): string {
+  if (person.within15Min) {
+    return person.earliestLabel
+      ? `最早 ${person.earliestLabel} 可约`
+      : '15 分钟内可约';
+  }
+  if (person.earliestLabel) return `最早 ${person.earliestLabel} 可约`;
+  if (person.inBusiness) return '营业中 · 可预约';
+  if (person.hasCompanion) return '今晚可约';
+  return '查看可约时段';
+}
+
+function personFulfillmentLabel(person: PersonListing): string {
+  if (person.has1v1 && person.hasCompanion) return '平台履约 · 陪玩可约';
+  if (person.has1v1) return '平台履约 · 预约时间';
+  if (person.hasCompanion) return '1V1 · 双方确认交割';
+  return '专属 Moment';
+}
 
 export function PersonCard({ person }: { person: PersonListing }) {
-  const waitLabel = person.earliestLabel
-    ? `最早 ${person.earliestLabel} 可约`
-    : person.hasGroup
-      ? '可组局 / 陪玩'
-      : '看看 TA 的 Moment';
+  const serviceTags = person.offerTags.filter((tag) => tag !== '组局');
+  const serviceLabel = serviceTags.join(' · ') || 'Moment';
+  const title = `${person.name} · ${serviceLabel}`;
+  const metaLabel = `${personTimeLabel(person)} · ${personFulfillmentLabel(person)}`;
+
+  const tags: string[] = [];
+  if (person.verified) tags.push('已认证');
 
   return (
-    <Link to={`/ta/${person.providerId}`} className="moment-card">
-      <div
-        className="moment-card__cover"
-        style={
-          person.avatarUrl
-            ? undefined
-            : {
-                background: `linear-gradient(160deg, ${person.avatarColor} 0%, ${person.avatarColor}cc 45%, #1a2332 100%)`,
-              }
-        }
-        aria-hidden
-      >
-        {person.avatarUrl ? (
-          <img className="moment-card__cover-img" src={person.avatarUrl} alt="" />
-        ) : (
-          <span className="moment-card__cover-letter">{person.name.slice(0, 1)}</span>
-        )}
-      </div>
-      <div className="moment-card__body">
-        <div className="moment-card__row">
-          <strong>{person.name}</strong>
-          {person.verified && <span className="badge">已认证</span>}
-          <span className="moment-card__wait">{waitLabel}</span>
-        </div>
-        <div className="moment-card__title">进主页选 Moment</div>
-        <div className="moment-card__meta">
-          <span>{person.offerTags.join(' · ') || 'Moment'}</span>
-        </div>
-        <div className="moment-card__trust">
-          {person.inBusiness && (
-            <span className="trust-chip">营业中</span>
-          )}
-          {person.offerTags.map((tag) => (
-            <span key={tag} className="trust-chip muted-chip">
-              {tag}
-            </span>
-          ))}
-          {person.within15Min && (
-            <span className="trust-chip">15分钟内</span>
-          )}
-        </div>
-        <div className="moment-card__price">
-          从 ¥{person.fromPriceYuan.toFixed(person.fromPriceYuan % 1 ? 1 : 0)}
-        </div>
-      </div>
-    </Link>
+    <ProviderFeedCard
+      to={`/ta/${person.providerId}`}
+      coverUrl={person.avatarUrl}
+      coverColor={person.avatarColor}
+      coverLetter={person.name.slice(0, 1)}
+      title={title}
+      metaLabel={metaLabel}
+      tags={tags}
+      priceLabel={`¥${person.fromPriceYuan.toFixed(person.fromPriceYuan % 1 ? 1 : 0)} 起`}
+      ctaLabel="去看看"
+    />
   );
 }
 
-export function GroupCard({ listing }: { listing: import('../data/marketMock').GroupListing }) {
+export function GroupCard({ listing }: { listing: GroupListing }) {
+  const host = getProvider(listing.hostProviderId);
+  const verified = host?.verified ?? false;
+  const visibleAvatars = (listing.participantAvatars ?? []).slice(0, 3);
+  const coverUrl = listing.coverImageUrl ?? listing.avatarUrl;
+
+  const hostTag = verified
+    ? '已认证'
+    : listing.hostBadge?.includes('主理')
+      ? '主理'
+      : listing.hostBadge;
+
+  const mediaLabel =
+    listing.joinedCount > 0
+      ? `${listing.joinedCount}人参与`
+      : `剩 ${listing.seatsLeft} 席`;
+
   return (
-    <Link to={`/group/${listing.id}`} className="moment-card">
-      <div
-        className="moment-card__cover"
-        style={
-          listing.avatarUrl
-            ? undefined
-            : {
-                background: `linear-gradient(160deg, ${listing.avatarColor} 0%, ${listing.avatarColor}cc 45%, #1a2332 100%)`,
-              }
-        }
-        aria-hidden
-      >
-        {listing.avatarUrl ? (
-          <img className="moment-card__cover-img" src={listing.avatarUrl} alt="" />
-        ) : (
-          <span className="moment-card__cover-letter">{listing.hostName.slice(0, 1)}</span>
-        )}
-      </div>
-      <div className="moment-card__body">
-        <div className="moment-card__row">
-          <strong>{listing.hostName}</strong>
-          <span className="moment-card__wait muted">{listing.whenLabel}</span>
-        </div>
-        <div className="moment-card__title">{listing.title}</div>
-        <div className="moment-card__meta">
-          <span>{listing.sceneTag}</span>
-          <span>·</span>
-          <span>{listing.placeLabel}</span>
-          <span>·</span>
-          <span>剩 {listing.seatsLeft} 席</span>
-        </div>
-        <div className="moment-card__trust">
-          <span className="trust-chip">{listing.sceneTag}</span>
-          <span className="trust-chip muted-chip">线下交割</span>
-        </div>
-        <div className="moment-card__price">¥{listing.priceYuan.toFixed(0)}</div>
-      </div>
-    </Link>
+    <GroupFeedCard
+      to={`/group/${listing.id}`}
+      coverUrl={coverUrl}
+      coverColor={listing.avatarColor}
+      coverLetter="局"
+      mediaLabel={mediaLabel}
+      mediaAvatars={listing.joinedCount > 0 ? visibleAvatars : undefined}
+      title={listing.title}
+      timeLabel={listing.whenLabel}
+      locationLabel={
+        listing.distanceLabel
+          ? `${listing.distanceLabel} ${listing.placeLabel}`
+          : listing.placeLabel
+      }
+      hostName={listing.hostName}
+      hostAvatarUrl={listing.avatarUrl}
+      hostColor={listing.avatarColor}
+      hostTag={hostTag}
+      priceLabel={`¥${listing.priceYuan.toFixed(0)}`}
+      ctaLabel="立即报名"
+    />
   );
 }
 
-export function TransferCard({ listing }: { listing: TransferListing }) {
+export function CompanionCard({ listing }: { listing: CompanionListing }) {
+  const provider = getProvider(listing.providerId);
+  const verified = provider?.verified ?? false;
+
+  const tags: string[] = [];
+  if (verified) tags.push('已认证');
+
   return (
-    <Link to={`/transfer/${listing.id}`} className="moment-card moment-card--transfer">
-      <div className="moment-card__body moment-card__body--transfer">
-        <div className="moment-card__row">
-          <span className="avatar avatar--transfer">转</span>
-          <strong>{listing.title}</strong>
-        </div>
-        <p className="muted">{listing.ruleHint}</p>
-        <span className="moment-card__wait">{listing.statusLabel}</span>
-      </div>
-    </Link>
+    <ProviderFeedCard
+      to={`/companion/${listing.id}`}
+      coverUrl={listing.avatarUrl}
+      coverColor={listing.avatarColor}
+      coverLetter={listing.providerName.slice(0, 1)}
+      title={listing.title}
+      metaLabel={`${listing.whenLabel} · ${listing.placeLabel}`}
+      tags={tags}
+      priceLabel={`¥${listing.priceYuan.toFixed(0)} 起`}
+      ctaLabel="立即下单"
+    />
   );
 }

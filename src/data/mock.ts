@@ -50,12 +50,11 @@ export type MomentItem = ScheduleConfig & {
   slots?: Slot[];
 };
 
-export type CategoryKey = '1v1' | 'group' | 'transfer';
+export type CategoryKey = '1v1' | 'group';
 
 export const categories: { key: CategoryKey; label: string; hint: string }[] = [
   { key: '1v1', label: '1V1', hint: '平台履约 · 预约时间' },
-  { key: 'group', label: '组局 / 陪玩', hint: '线下履约 · 双方确认交割' },
-  { key: 'transfer', label: '转约', hint: '规则占位，首期不开放交易' },
+  { key: 'group', label: '组局', hint: '主理人召集 · 双方确认交割' },
 ];
 
 /** 首页分类 pill（含「全部」） */

@@ -9,6 +9,8 @@ const LOCAL_KEYS = [
   'maxu-moment-demo-stock-v2',
   'maxu-moment-demo-stock',
   'maxu-moment-demo-group-orders-v1',
+  'maxu-moment-demo-activity-groups-v1',
+  'maxu-moment-demo-group-seats-v1',
 ];
 
 const SESSION_KEYS = [

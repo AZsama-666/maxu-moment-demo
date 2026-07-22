@@ -102,12 +102,69 @@ export const feedPosts: FeedPost[] = [
 export type Conversation = {
   id: string;
   kind: 'private' | 'group';
+  subtype?: 'activity';
   name: string;
   avatarColor: string;
   preview: string;
   time: string;
   unread: number;
+  to?: string;
 };
+
+/** 图2 演示 mock：活动群 + Aurora + Nova + 周五开黑车队 */
+export const demoMessageConversations: Conversation[] = [
+  {
+    id: 'ag-g-boardgame',
+    kind: 'group',
+    subtype: 'activity',
+    name: '周末桌游局 · 狼人杀 · 周六 19:30',
+    avatarColor: '#E8A05A',
+    preview: '[组局] 周六 19:30 · 静安桌游吧',
+    time: '刚刚',
+    unread: 1,
+    to: '/messages/chat/ag-g-boardgame',
+  },
+  {
+    id: 'c1',
+    kind: 'private',
+    name: 'Aurora',
+    avatarColor: '#3DB8A0',
+    preview: '[预约] 周五 20:00 · 语音专属',
+    time: '10:24',
+    unread: 2,
+    to: '/messages/dm/p-aurora',
+  },
+  {
+    id: 'c2',
+    kind: 'private',
+    name: 'Nova',
+    avatarColor: '#4A7FD4',
+    preview: '[预约] 视频档期已确认',
+    time: '09:51',
+    unread: 0,
+    to: '/messages/dm/p-nova',
+  },
+  {
+    id: 'c-kira',
+    kind: 'private',
+    name: 'Kira',
+    avatarColor: '#7B6CF6',
+    preview: '[陪玩] 今晚可约 · 瓦罗兰特',
+    time: '08:12',
+    unread: 0,
+    to: '/messages/dm/p-kira',
+  },
+  {
+    id: 'c3-gaming',
+    kind: 'group',
+    name: '周五开黑车队',
+    avatarColor: '#5A9E8C',
+    preview: '阿哲：今晚八点集合，别迟到',
+    time: '昨天',
+    unread: 5,
+    to: '/messages/chat/c3-gaming',
+  },
+];
 
 export const conversations: Conversation[] = [
   {

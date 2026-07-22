@@ -1,11 +1,18 @@
 import { useSyncExternalStore } from 'react';
-import { getGroupListing } from '../data/marketMock';
+import {
+  deductGroupSeatOnPay,
+  getDualConfirmListing,
+  getGroupListing,
+} from '../data/marketMock';
+import { ensureActivityGroupForOrder } from './activityGroupStore';
 import {
   getSupplyListing,
   updateCompanionSupply,
 } from './supplyStore';
 
+export type GroupOrderPaymentStatus = 'pending_payment' | 'paid';
 export type GroupOrderStatus = 'awaiting_confirm' | 'completed';
+export type GroupPayMethod = 'cash' | 'coin';
 
 export type GroupOrder = {
   id: string;
@@ -18,9 +25,12 @@ export type GroupOrder = {
   whenLabel: string;
   placeLabel: string;
   status: GroupOrderStatus;
+  paymentStatus: GroupOrderPaymentStatus;
+  payMethod?: GroupPayMethod;
   buyerConfirmed: boolean;
   hostConfirmed: boolean;
   createdAt: number;
+  paidAt?: number;
 };
 
 const STORAGE_KEY = 'maxu-moment-demo-group-orders-v1';
@@ -28,14 +38,19 @@ const STORAGE_KEY = 'maxu-moment-demo-group-orders-v1';
 let orders: GroupOrder[] = load();
 const listeners = new Set<() => void>();
 
+function normalizeOrder(order: GroupOrder): GroupOrder {
+  return {
+    ...order,
+    hostProviderId: order.hostProviderId ?? '',
+    paymentStatus: order.paymentStatus ?? 'paid',
+  };
+}
+
 function load(): GroupOrder[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw
-      ? (JSON.parse(raw) as GroupOrder[]).map((order) => ({
-          ...order,
-          hostProviderId: order.hostProviderId ?? '',
-        }))
+      ? (JSON.parse(raw) as GroupOrder[]).map(normalizeOrder)
       : [];
   } catch {
     return [];
@@ -68,26 +83,48 @@ export function getGroupOrder(id: string) {
   return orders.find((o) => o.id === id);
 }
 
+export function isGroupOrderPaid(order: GroupOrder): boolean {
+  return order.paymentStatus === 'paid';
+}
+
+export function isGroupListingOrder(order: GroupOrder): boolean {
+  return Boolean(getGroupListing(order.listingId));
+}
+
 export function createGroupOrder(listingId: string): GroupOrder | null {
-  const listing = getGroupListing(listingId);
-  if (!listing || listing.seatsLeft <= 0) return null;
+  const listing = getDualConfirmListing(listingId);
+  if (!listing) return null;
+
+  const remaining =
+    listing.kind === 'group' ? listing.seatsLeft : listing.remaining;
+  if (remaining <= 0) return null;
+
+  const hostProviderId =
+    listing.kind === 'group' ? listing.hostProviderId : listing.providerId;
+  const hostName =
+    listing.kind === 'group' ? listing.hostName : listing.providerName;
+  const isGroup = listing.kind === 'group';
+
   const order: GroupOrder = {
     id: `go-${Date.now()}`,
     listingId: listing.id,
-    supplyListingId: listing.supplyListingId,
-    hostProviderId: listing.hostProviderId,
+    supplyListingId:
+      listing.kind === 'companion' ? listing.supplyListingId : undefined,
+    hostProviderId,
     title: listing.title,
-    hostName: listing.hostName,
+    hostName,
     priceYuan: listing.priceYuan,
     whenLabel: listing.whenLabel,
     placeLabel: listing.placeLabel,
     status: 'awaiting_confirm',
+    paymentStatus: isGroup ? 'pending_payment' : 'paid',
     buyerConfirmed: false,
     hostConfirmed: false,
     createdAt: Date.now(),
+    paidAt: isGroup ? undefined : Date.now(),
   };
   orders = [order, ...orders];
-  if (listing.supplyListingId) {
+  if (listing.kind === 'companion' && listing.supplyListingId) {
     const supply = getSupplyListing(listing.supplyListingId);
     if (supply?.kind === 'companion') {
       updateCompanionSupply(supply.id, {
@@ -97,6 +134,43 @@ export function createGroupOrder(listingId: string): GroupOrder | null {
   }
   emit();
   return order;
+}
+
+export function payGroupOrder(
+  orderId: string,
+  payMethod: GroupPayMethod = 'cash',
+): GroupOrder | null {
+  const idx = orders.findIndex((o) => o.id === orderId);
+  if (idx < 0) return null;
+
+  const cur = orders[idx];
+  if (cur.paymentStatus === 'paid') return cur;
+  if (cur.paymentStatus !== 'pending_payment') return null;
+
+  const groupListing = getGroupListing(cur.listingId);
+  if (groupListing) {
+    if (!deductGroupSeatOnPay(groupListing.id)) return null;
+    const paidOrder: GroupOrder = {
+      ...cur,
+      paymentStatus: 'paid',
+      payMethod,
+      paidAt: Date.now(),
+    };
+    ensureActivityGroupForOrder(paidOrder, groupListing);
+    orders = orders.map((o, i) => (i === idx ? paidOrder : o));
+    emit();
+    return paidOrder;
+  }
+
+  const paidOrder: GroupOrder = {
+    ...cur,
+    paymentStatus: 'paid',
+    payMethod,
+    paidAt: Date.now(),
+  };
+  orders = orders.map((o, i) => (i === idx ? paidOrder : o));
+  emit();
+  return paidOrder;
 }
 
 export function confirmGroupOrderSide(

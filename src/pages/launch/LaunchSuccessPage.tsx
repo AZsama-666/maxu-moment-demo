@@ -19,7 +19,7 @@ export function LaunchSuccessPage() {
   }
 
   const buyerPath =
-    listing.kind === 'companion' ? `/group/${listing.id}` : `/moment/${listing.id}`;
+    listing.kind === 'companion' ? `/companion/${listing.id}` : `/moment/${listing.id}`;
   const opposite =
     listing.kind === '1v1'
       ? listing.form === 'voice'

@@ -1,22 +1,52 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { chatShortcuts, conversations } from '../data/appShellMock';
+import {
+  chatShortcuts,
+  demoMessageConversations,
+  type Conversation,
+} from '../data/appShellMock';
+import {
+  listActivityGroupConversations,
+  useActivityGroups,
+} from '../state/activityGroupStore';
 import { useMessageReminders } from '../state/messageReminders';
 import { useSupplyTasks } from '../state/supplyTasks';
 
 const filters = ['全部', '私聊', '群聊'] as const;
 type Filter = (typeof filters)[number];
 
+type ChatListItem = Conversation;
+
 export function MessagesPage() {
   const [filter, setFilter] = useState<Filter>('全部');
   const supplyTasks = useSupplyTasks();
   const reminders = useMessageReminders();
+  useActivityGroups();
 
-  const list = conversations.filter((c) => {
-    if (filter === '私聊') return c.kind === 'private';
-    if (filter === '群聊') return c.kind === 'group';
-    return true;
-  });
+  const activityGroups = listActivityGroupConversations();
+  const dynamicListingIds = new Set(
+    activityGroups.map((g) => g.id.replace(/^ag-/, '')),
+  );
+
+  const list = useMemo(() => {
+    const staticDemos = demoMessageConversations.filter((c) => {
+      if (c.subtype === 'activity' && c.id.startsWith('ag-')) {
+        const listingId = c.id.replace(/^ag-/, '');
+        return !dynamicListingIds.has(listingId);
+      }
+      return true;
+    });
+
+    const merged: ChatListItem[] = [...activityGroups, ...staticDemos];
+
+    if (filter === '私聊') {
+      return merged.filter((c) => c.kind === 'private');
+    }
+    if (filter === '群聊') {
+      return merged.filter((c) => c.kind === 'group');
+    }
+    return merged;
+  }, [activityGroups, dynamicListingIds, filter]);
 
   return (
     <div className="chat-page">
@@ -104,23 +134,52 @@ export function MessagesPage() {
       </div>
 
       <div className="chat-list">
-        {list.map((c) => (
-          <div key={c.id} className={`chat-item ${c.kind === 'group' ? 'chat-item--group' : ''}`}>
-            <span className="chat-item__avatar" style={{ background: c.avatarColor }}>
-              {c.name.slice(0, 1)}
-            </span>
-            <div className="chat-item__body">
-              <div className="chat-item__top">
-                <span className="chat-item__name">{c.name}</span>
-                <span className="chat-item__time">{c.time}</span>
+        {list.map((c) => {
+          const itemClass = [
+            'chat-item',
+            c.kind === 'group' ? 'chat-item--group' : '',
+            c.subtype === 'activity' ? 'chat-item--activity' : '',
+          ]
+            .filter(Boolean)
+            .join(' ');
+
+          const body = (
+            <>
+              <span className="chat-item__avatar" style={{ background: c.avatarColor }}>
+                {c.subtype === 'activity' ? '局' : c.name.slice(0, 1)}
+              </span>
+              <div className="chat-item__body">
+                <div className="chat-item__top">
+                  <span className="chat-item__name">
+                    {c.name}
+                    {c.subtype === 'activity' && (
+                      <span className="chat-item__tag">活动群</span>
+                    )}
+                  </span>
+                  <span className="chat-item__time">{c.time}</span>
+                </div>
+                <div className="chat-item__bottom">
+                  <span className="chat-item__preview">{c.preview}</span>
+                  {c.unread > 0 && <span className="chat-item__badge">{c.unread}</span>}
+                </div>
               </div>
-              <div className="chat-item__bottom">
-                <span className="chat-item__preview">{c.preview}</span>
-                {c.unread > 0 && <span className="chat-item__badge">{c.unread}</span>}
-              </div>
+            </>
+          );
+
+          if (c.to) {
+            return (
+              <Link key={c.id} to={c.to} className={itemClass}>
+                {body}
+              </Link>
+            );
+          }
+
+          return (
+            <div key={c.id} className={itemClass}>
+              {body}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

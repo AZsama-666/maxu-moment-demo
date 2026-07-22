@@ -2,13 +2,14 @@ import { Link, Navigate, useParams } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { getProvider, listMomentsByProvider } from '../data/catalog';
-import { GroupCard, PersonCard, TransferCard } from '../components/MarketCards';
+import { GroupActivityFeed } from '../components/GroupActivityFeed';
+import { GroupCard, CompanionCard, PersonCard } from '../components/MarketCards';
 import { MomentCard } from '../components/MomentCard';
 import {
   filterMarketItems,
+  listCompanionsByProvider,
   listGroupsByProvider,
   listMarketItems,
-  transferListings,
 } from '../data/marketMock';
 import { categories, providerHeroUrl, type CategoryKey } from '../data/mock';
 import { useOpenSupplyMoments } from '../state/supplyStore';
@@ -67,23 +68,16 @@ export function CategoryPage() {
     return <PlaceholderPage title="分类" message="未找到该分类。" />;
   }
 
-  if (key === 'transfer') {
+  if (key === 'group') {
     return (
       <div className="page">
-        <PageHeader title="转约" backTo="/" />
-        <p className="section__desc">规则占位，首期不开放交易</p>
-        <div className="stack">
-          {transferListings.map((t) => (
-            <TransferCard key={t.id} listing={t} />
-          ))}
-        </div>
+        <PageHeader title={cat.label} backTo="/" />
+        <GroupActivityFeed />
       </div>
     );
   }
 
-  const people = filterMarketItems(listMarketItems(), key as CategoryKey, false).filter(
-    (item) => item.kind === 'person',
-  );
+  const people = filterMarketItems(listMarketItems(), key as CategoryKey, false);
 
   return (
     <div className="page">
@@ -93,11 +87,7 @@ export function CategoryPage() {
         {people.length === 0 ? (
           <p className="empty">该分类暂无供给</p>
         ) : (
-          people.map((p) =>
-            p.kind === 'person' ? (
-              <PersonCard key={p.providerId} person={p} />
-            ) : null,
-          )
+          people.map((p) => <PersonCard key={p.providerId} person={p} />)
         )}
       </div>
     </div>
@@ -110,6 +100,7 @@ export function TaMomentPage() {
   const provider = getProvider(providerId);
   const moments = listMomentsByProvider(providerId);
   const groups = listGroupsByProvider(providerId);
+  const companions = listCompanionsByProvider(providerId);
 
   if (!provider) {
     return (
@@ -120,7 +111,8 @@ export function TaMomentPage() {
     );
   }
 
-  const hasAny = moments.length > 0 || groups.length > 0;
+  const hasAny =
+    moments.length > 0 || groups.length > 0 || companions.length > 0;
   const heroUrl = providerHeroUrl(provider);
 
   return (
@@ -158,7 +150,7 @@ export function TaMomentPage() {
           <div className="detail-cover__stats">
             <span>
               {hasAny
-                ? `${moments.length + groups.length} 个可约 Moment`
+                ? `${moments.length + companions.length + groups.length} 个可约 Moment`
                 : '暂无开放'}
             </span>
           </div>
@@ -181,9 +173,26 @@ export function TaMomentPage() {
           </section>
         )}
 
+        {companions.length > 0 && (
+          <section className="section">
+            <h3 className="section__title">陪玩</h3>
+            <p className="section__desc muted" style={{ marginTop: -8 }}>
+              1V1 服务 · 完成后双方确认交割
+            </p>
+            <div className="stack">
+              {companions.map((c) => (
+                <CompanionCard key={c.id} listing={c} />
+              ))}
+            </div>
+          </section>
+        )}
+
         {groups.length > 0 && (
           <section className="section">
-            <h3 className="section__title">组局 / 陪玩</h3>
+            <h3 className="section__title">组局</h3>
+            <p className="section__desc muted" style={{ marginTop: -8 }}>
+              主理人召集 · 报名后双方确认交割
+            </p>
             <div className="stack">
               {groups.map((g) => (
                 <GroupCard key={g.id} listing={g} />
