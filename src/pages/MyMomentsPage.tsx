@@ -21,7 +21,7 @@ export function MyMomentsPage() {
         <div className="supply-empty">
           <div className="supply-empty__icon">M</div>
           <h2>你还没有发起任何 Moment</h2>
-          <p className="muted">可以开放 1V1 语音、视频或陪玩，让别人来约你。</p>
+          <p className="muted">可以开放 1V1 语音、视频、组局或陪玩，让别人来约你。</p>
           <Link
             to="/profile/my-moments/launch/type"
             className="btn btn--primary btn--block"
@@ -125,6 +125,12 @@ function SupplySkuCard({
   } else if (pendingCompanion > 0) {
     stateText = `有 ${pendingCompanion} 笔服务等待确认交割`;
     action = { label: '去确认', to: '/profile/my-moments/tasks' };
+  } else if (listing.kind === 'group') {
+    stateText = `${listing.whenLabel} · ${listing.placeLabel} · 剩 ${listing.seatsLeft} 席`;
+    action = {
+      label: '去管理',
+      to: `/profile/my-moments/${listing.id}/manage`,
+    };
   } else if (listing.kind === 'companion') {
     stateText = `${listing.serviceTime} · ${listing.placeLabel} · 剩 ${listing.remaining} 席`;
   } else if (!listing.bookingOpen) {
@@ -142,15 +148,19 @@ function SupplySkuCard({
   }
 
   const typeLabel =
-    listing.kind === 'companion'
-      ? '陪玩'
-      : listing.form === 'voice'
-        ? '1V1 语音'
-        : '1V1 视频';
+    listing.kind === 'group'
+      ? '组局 · 狼人杀'
+      : listing.kind === 'companion'
+        ? '陪玩'
+        : listing.form === 'voice'
+          ? '1V1 语音'
+          : '1V1 视频';
   const unit =
-    listing.kind === 'companion'
-      ? listing.unitLabel
-      : `${listing.durationSec} 秒/份`;
+    listing.kind === 'group'
+      ? `${listing.seats} 席`
+      : listing.kind === 'companion'
+        ? listing.unitLabel
+        : `${listing.durationSec} 秒/份`;
 
   return (
     <article className="supply-sku-card">

@@ -31,7 +31,11 @@ export function SupplyManagePage() {
   }
 
   const buyerPath =
-    listing.kind === 'companion' ? `/companion/${listing.id}` : `/moment/${listing.id}`;
+    listing.kind === 'group'
+      ? `/group/${listing.id}`
+      : listing.kind === 'companion'
+        ? `/companion/${listing.id}`
+        : `/moment/${listing.id}`;
   const upcoming =
     listing.kind === '1v1'
       ? tasks.upcoming.filter((order) => order.momentId === listing.id)
@@ -46,11 +50,13 @@ export function SupplyManagePage() {
       <div className="soft-card soft-card--static">
         <div className="section__head">
           <span className="pill">
-            {listing.kind === 'companion'
-              ? '陪玩'
-              : listing.form === 'voice'
-                ? '1V1 语音'
-                : '1V1 视频'}
+            {listing.kind === 'group'
+              ? '组局 · 狼人杀'
+              : listing.kind === 'companion'
+                ? '陪玩'
+                : listing.form === 'voice'
+                  ? '1V1 语音'
+                  : '1V1 视频'}
           </span>
           <span className="muted">
             {listing.status === 'open' ? '正在销售' : '已下架'}
@@ -58,12 +64,28 @@ export function SupplyManagePage() {
         </div>
         <h2 className="detail-title">{listing.title}</h2>
         <p className="muted">
-          {listing.kind === 'companion'
-            ? `${listing.unitLabel} · ${listing.serviceTime}`
-            : `${listing.durationSec} 秒/份 · ${listing.statusLabel}`}
+          {listing.kind === 'group'
+            ? `${listing.whenLabel} · ${listing.placeLabel} · 剩 ${listing.seatsLeft}/${listing.seats} 席`
+            : listing.kind === 'companion'
+              ? `${listing.unitLabel} · ${listing.serviceTime}`
+              : `${listing.durationSec} 秒/份 · ${listing.statusLabel}`}
           {' · '}¥{listing.priceYuan.toFixed(1)}
         </p>
       </div>
+
+      {listing.kind === 'group' && listing.status === 'open' && (
+        <section className="section">
+          <h3 className="section__title">招募状态</h3>
+          <div className="manage-row">
+            <span>
+              <strong>招募中</strong>
+              <small>
+                剩余 {listing.seatsLeft} 席 · 已认证主理人
+              </small>
+            </span>
+          </div>
+        </section>
+      )}
 
       {listing.kind === '1v1' && listing.status === 'open' && schedule && (
         <section className="section">
@@ -125,12 +147,21 @@ export function SupplyManagePage() {
             className="manage-item"
             onClick={() => {
               loadListingIntoDraft(listing);
-              const sku = listing.kind === 'companion' ? 'companion' : listing.form;
+              const sku =
+                listing.kind === 'group'
+                  ? 'group'
+                  : listing.kind === 'companion'
+                    ? 'companion'
+                    : listing.form;
               navigate(`/profile/my-moments/launch/product?sku=${sku}`);
             }}
           >
             <span>
-              <strong>商品、价格与营业时间</strong>
+              <strong>
+                {listing.kind === 'group'
+                  ? '活动信息与履约设置'
+                  : '商品、价格与营业时间'}
+              </strong>
               <small>编辑后会进入预览再保存</small>
             </span>
             <span>›</span>

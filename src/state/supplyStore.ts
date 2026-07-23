@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { GROUP_SELF_LISTING_ID } from '../data/groupDemoPresets';
 import {
   SELF_PROVIDER_ID,
   computeStatusLabel,
@@ -7,6 +8,10 @@ import {
   type MomentItem,
   type SkuType,
 } from '../data/mock';
+import type {
+  GroupContentSection,
+  GroupRefundPolicy,
+} from '../data/marketMock';
 import { BOOKABLE_DAYS, DEFAULT_SLOT_CAPACITY, migrateScheduleFields } from '../utils/bookingSlots';
 import { getRemainingStock } from './orderStore';
 
@@ -35,7 +40,35 @@ export type CompanionSupplyListing = {
   createdAt: number;
 };
 
-export type SupplyListing = OneToOneSupplyListing | CompanionSupplyListing;
+export type GroupSupplyListing = {
+  kind: 'group';
+  id: string;
+  skuType: 'group';
+  title: string;
+  providerId: string;
+  description: string;
+  intro: string;
+  whenLabel: string;
+  placeLabel: string;
+  priceYuan: number;
+  seats: number;
+  seatsLeft: number;
+  coverImageUrl: string;
+  hostBadge: string;
+  hostOrganizedCount: number;
+  hostIntro: string;
+  hostWechatId: string;
+  joinNoteTemplate: string;
+  refundPolicy: GroupRefundPolicy;
+  contentSections: GroupContentSection[];
+  status: SupplyStatus;
+  createdAt: number;
+};
+
+export type SupplyListing =
+  | OneToOneSupplyListing
+  | CompanionSupplyListing
+  | GroupSupplyListing;
 
 export type CreateMomentInput = {
   form: InteractionForm;
@@ -56,6 +89,24 @@ export type CreateCompanionInput = {
   serviceTime: string;
   placeLabel: string;
   seats: number;
+};
+
+export type CreateGroupInput = {
+  title: string;
+  description: string;
+  intro: string;
+  whenLabel: string;
+  placeLabel: string;
+  priceYuan: number;
+  seats: number;
+  coverImageUrl: string;
+  hostBadge: string;
+  hostOrganizedCount: number;
+  hostIntro: string;
+  hostWechatId: string;
+  joinNoteTemplate: string;
+  refundPolicy: GroupRefundPolicy;
+  contentSections: GroupContentSection[];
 };
 
 export type UpdateSupplyInput = {
@@ -103,8 +154,17 @@ function load(): Snapshot {
 }
 
 function normalizeListing(
-  listing: SupplyListing & { online?: boolean; kind?: '1v1' | 'companion' },
+  listing: SupplyListing & { online?: boolean; kind?: '1v1' | 'companion' | 'group' },
 ): SupplyListing {
+  if (listing.kind === 'group') {
+    return {
+      ...listing,
+      skuType: 'group',
+      seatsLeft: listing.seatsLeft ?? listing.seats ?? 8,
+      status: listing.status ?? 'open',
+    };
+  }
+
   if (listing.kind === 'companion') {
     return {
       ...listing,
@@ -232,6 +292,67 @@ export function createCompanionSupply(
   return listing;
 }
 
+export function createGroupSupply(input: CreateGroupInput): GroupSupplyListing {
+  const existing = snapshot.listings.find(
+    (listing): listing is GroupSupplyListing => listing.kind === 'group',
+  );
+  const sold = existing ? Math.max(0, existing.seats - existing.seatsLeft) : 0;
+  const seats = input.seats;
+
+  const listing: GroupSupplyListing = {
+    kind: 'group',
+    skuType: 'group',
+    id: GROUP_SELF_LISTING_ID,
+    title: input.title.trim(),
+    providerId: SELF_PROVIDER_ID,
+    description: input.description.trim(),
+    intro: input.intro.trim(),
+    whenLabel: input.whenLabel.trim(),
+    placeLabel: input.placeLabel.trim(),
+    priceYuan: input.priceYuan,
+    seats,
+    seatsLeft: Math.max(0, seats - sold),
+    coverImageUrl: input.coverImageUrl,
+    hostBadge: input.hostBadge,
+    hostOrganizedCount: input.hostOrganizedCount,
+    hostIntro: input.hostIntro.trim(),
+    hostWechatId: input.hostWechatId.trim(),
+    joinNoteTemplate: input.joinNoteTemplate.trim(),
+    refundPolicy: input.refundPolicy,
+    contentSections: input.contentSections,
+    status: existing?.status ?? 'open',
+    createdAt: existing?.createdAt ?? Date.now(),
+  };
+
+  snapshot = {
+    listings: existing
+      ? snapshot.listings.map((item) =>
+          item.kind === 'group' ? listing : item,
+        )
+      : [listing, ...snapshot.listings],
+  };
+  emit();
+  return listing;
+}
+
+export function updateGroupSupply(
+  id: string,
+  patch: Partial<Omit<GroupSupplyListing, 'id' | 'kind' | 'skuType' | 'createdAt'>>,
+) {
+  snapshot = {
+    listings: snapshot.listings.map((listing) => {
+      if (listing.id !== id || listing.kind !== 'group') return listing;
+      const next = { ...listing, ...patch };
+      if (patch.seats != null && patch.seatsLeft == null) {
+        const sold = Math.max(0, listing.seats - listing.seatsLeft);
+        next.seatsLeft = Math.max(0, patch.seats - sold);
+      }
+      return next;
+    }),
+  };
+  emit();
+}
+
 export function updateSupplyMoment(id: string, patch: UpdateSupplyInput) {
   snapshot = {
     listings: snapshot.listings.map((listing) => {
@@ -272,6 +393,8 @@ export function setSupplyStatus(id: string, status: SupplyStatus) {
       status,
       bookingOpen: status === 'open' ? listing.bookingOpen : false,
     });
+  } else if (listing.kind === 'group') {
+    updateGroupSupply(id, { status });
   } else {
     updateCompanionSupply(id, { status });
   }
@@ -347,6 +470,11 @@ export function getOpenListingByForm(form: InteractionForm) {
 }
 
 export function getListingBySkuType(skuType: SkuType) {
+  if (skuType === 'group') {
+    return snapshot.listings.find(
+      (listing): listing is GroupSupplyListing => listing.kind === 'group',
+    );
+  }
   if (skuType === 'companion') {
     return snapshot.listings.filter(
       (listing): listing is CompanionSupplyListing =>
@@ -366,6 +494,13 @@ export function getOpenSupplyMoments(): MomentItem[] {
         listing.kind === '1v1' && listing.status === 'open',
     )
     .map(toMomentItem);
+}
+
+export function getOpenGroupListings(): GroupSupplyListing[] {
+  return snapshot.listings.filter(
+    (listing): listing is GroupSupplyListing =>
+      listing.kind === 'group' && listing.status === 'open',
+  );
 }
 
 export function getOpenCompanionListings(): CompanionSupplyListing[] {

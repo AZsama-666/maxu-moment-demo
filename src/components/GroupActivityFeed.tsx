@@ -1,3 +1,4 @@
+import { useSupplyListings } from '../state/supplyStore';
 import { GroupCard } from './MarketCards';
 import {
   GROUP_TRUST_HINT,
@@ -5,6 +6,7 @@ import {
 } from '../data/marketMock';
 
 export function GroupActivityFeed() {
+  useSupplyListings();
   const groups = listBrowseGroupListings();
 
   return (

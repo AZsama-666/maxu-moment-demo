@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '../../components/PageHeader';
 import { SupplyLaunchProgress } from '../../components/SupplyLaunchProgress';
+import { formatRefundPolicySummary } from '../../data/marketMock';
 import type { SkuType } from '../../data/mock';
 import {
   draftScheduleConfig,
@@ -20,7 +21,7 @@ import {
   SLOT_INTERVAL_MIN,
 } from '../../utils/bookingSlots';
 
-const validTypes: SkuType[] = ['voice', 'video', 'companion'];
+const validTypes: SkuType[] = ['voice', 'video', 'companion', 'group'];
 
 export function LaunchFulfillmentPage() {
   const [params] = useSearchParams();
@@ -32,13 +33,13 @@ export function LaunchFulfillmentPage() {
   const [previewNow, setPreviewNow] = useState(() => Date.now());
 
   useEffect(() => {
-    if (sku === 'companion') return;
+    if (sku === 'companion' || sku === 'group') return;
     const timer = window.setInterval(() => setPreviewNow(Date.now()), 60_000);
     return () => window.clearInterval(timer);
   }, [sku]);
 
   const schedulePreview = useMemo(() => {
-    if (sku === 'companion' || validateScheduleDraft(draft)) return null;
+    if (sku === 'companion' || sku === 'group' || validateScheduleDraft(draft)) return null;
     const config = scheduleFromDraft(draftScheduleConfig(draft));
     const now = new Date(previewNow);
     const status = getBookingStatus('preview', config, now);
@@ -58,7 +59,72 @@ export function LaunchFulfillmentPage() {
       />
       <SupplyLaunchProgress current={3} />
 
-      {sku === 'companion' ? (
+      {sku === 'group' ? (
+        <section className="section">
+          <div className="info-callout">
+            Demo 已预填狼人杀活动模板。到场后由买卖双方确认交割；主理人微信仅付款后展示。
+          </div>
+          <label className="form-field">
+            <span>活动时间</span>
+            <input
+              value={draft.serviceTime}
+              onChange={(event) =>
+                updateLaunchDraft({ serviceTime: event.target.value })
+              }
+            />
+          </label>
+          <label className="form-field">
+            <span>活动地点</span>
+            <input
+              value={draft.placeLabel}
+              onChange={(event) =>
+                updateLaunchDraft({ placeLabel: event.target.value })
+              }
+            />
+          </label>
+          <label className="form-field">
+            <span>活动简介</span>
+            <textarea
+              rows={3}
+              value={draft.intro}
+              onChange={(event) => updateLaunchDraft({ intro: event.target.value })}
+            />
+          </label>
+          <label className="form-field">
+            <span>主理人简介</span>
+            <textarea
+              rows={2}
+              value={draft.hostIntro}
+              onChange={(event) =>
+                updateLaunchDraft({ hostIntro: event.target.value })
+              }
+            />
+          </label>
+          <label className="form-field">
+            <span>主理人微信（付款后买家可见）</span>
+            <input
+              value={draft.hostWechatId}
+              onChange={(event) =>
+                updateLaunchDraft({ hostWechatId: event.target.value })
+              }
+            />
+          </label>
+          <div className="soft-card soft-card--static">
+            <strong>退改规则</strong>
+            <p className="muted">
+              {formatRefundPolicySummary(draft.refundPolicy)}
+            </p>
+          </div>
+          {draft.contentSections.map((section) => (
+            <div key={section.title} className="soft-card soft-card--static">
+              <strong>{section.title}</strong>
+              <p className="muted" style={{ whiteSpace: 'pre-line' }}>
+                {section.body}
+              </p>
+            </div>
+          ))}
+        </section>
+      ) : sku === 'companion' ? (
         <section className="section">
           <div className="info-callout">
             陪玩不使用预约排期。服务完成后，由买家和你双方确认交割。
@@ -197,6 +263,15 @@ export function LaunchFulfillmentPage() {
             if (sku === 'companion') {
               if (!draft.serviceTime.trim() || !draft.placeLabel.trim()) {
                 setError('请填写服务时间和服务方式');
+                return;
+              }
+            } else if (sku === 'group') {
+              if (
+                !draft.serviceTime.trim() ||
+                !draft.placeLabel.trim() ||
+                !draft.intro.trim()
+              ) {
+                setError('请填写活动时间、地点和活动简介');
                 return;
               }
             } else {

@@ -27,6 +27,12 @@ const skuOptions: Array<{
     badge: '平台履约',
   },
   {
+    type: 'group',
+    title: '组局 · 狼人杀',
+    description: '发起线下桌游局，Demo 已预填狼人杀活动模板',
+    badge: '双方确认',
+  },
+  {
     type: 'companion',
     title: '陪玩',
     description: '按约定完成服务，结束后双方确认交割',
@@ -47,7 +53,7 @@ export function LaunchTypePage() {
       <PageHeader title="选择 SKU" backTo="/profile/my-moments" />
       <SupplyLaunchProgress current={1} />
       <p className="section__desc">
-        先选择你要提供的服务。语音、视频和陪玩分别独立管理。
+        先选择你要提供的服务。语音、视频、组局和陪玩分别独立管理。
       </p>
 
       <div className="launch-sku-list">

@@ -8,7 +8,7 @@ import {
   useLaunchDraft,
 } from '../../state/launchDraftStore';
 
-const validTypes: SkuType[] = ['voice', 'video', 'companion'];
+const validTypes: SkuType[] = ['voice', 'video', 'companion', 'group'];
 
 export function LaunchProductPage() {
   const [params] = useSearchParams();
@@ -25,6 +25,7 @@ export function LaunchProductPage() {
   }
 
   const isCompanion = sku === 'companion';
+  const isGroup = sku === 'group';
 
   return (
     <div className="page page--launch">
@@ -64,7 +65,20 @@ export function LaunchProductPage() {
           />
         </label>
 
-        {isCompanion ? (
+        {isGroup ? (
+          <label className="form-field">
+            <span>活动总席位</span>
+            <input
+              type="number"
+              min={2}
+              max={99}
+              value={draft.seats}
+              onChange={(event) =>
+                updateLaunchDraft({ seats: Number(event.target.value) || 2 })
+              }
+            />
+          </label>
+        ) : isCompanion ? (
           <>
             <label className="form-field">
               <span>服务单位</span>

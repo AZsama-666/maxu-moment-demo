@@ -7,7 +7,7 @@ import {
 } from '../utils/bookingSlots';
 
 export type InteractionForm = 'voice' | 'video';
-export type SkuType = InteractionForm | 'companion';
+export type SkuType = InteractionForm | 'companion' | 'group';
 
 /** @deprecated 运行时由 bookingSlots 生成，仅保留类型兼容 */
 export type Slot = {

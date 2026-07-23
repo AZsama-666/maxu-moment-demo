@@ -7,7 +7,7 @@ import {
 } from './mock';
 import { WITHIN_15_MIN_MS, getBookingStatus, migrateScheduleFields } from '../utils/bookingSlots';
 import { getRemainingStock } from '../state/orderStore';
-import { getOpenCompanionListings } from '../state/supplyStore';
+import { getOpenCompanionListings, getOpenGroupListings } from '../state/supplyStore';
 
 export type MarketFilter = 'all' | CategoryKey;
 
@@ -70,7 +70,7 @@ function applyGroupSeatOverride(listing: GroupListing): GroupListing {
 }
 
 export function deductGroupSeatOnPay(listingId: string): boolean {
-  const base = groupListings.find((g) => g.id === listingId);
+  const base = getGroupListing(listingId);
   if (!base) return false;
   const overrides = loadGroupSeatOverrides();
   const current = overrides[listingId] ?? {
@@ -323,19 +323,50 @@ function dynamicCompanionListings(): CompanionListing[] {
   }));
 }
 
+function dynamicGroupListings(): GroupListing[] {
+  return getOpenGroupListings().map((listing) => ({
+    kind: 'group' as const,
+    id: listing.id,
+    hostProviderId: listing.providerId,
+    title: listing.title,
+    hostName: '玛薯',
+    avatarColor: '#4ADCC4',
+    coverImageUrl: listing.coverImageUrl,
+    whenLabel: listing.whenLabel,
+    placeLabel: listing.placeLabel,
+    distanceLabel: '3.2km',
+    priceYuan: listing.priceYuan,
+    seatsLeft: listing.seatsLeft,
+    joinedCount: Math.max(0, listing.seats - listing.seatsLeft),
+    hostBadge: listing.hostBadge,
+    description: listing.description,
+    intro: listing.intro,
+    contentSections: listing.contentSections,
+    hostOrganizedCount: listing.hostOrganizedCount,
+    hostIntro: listing.hostIntro,
+    refundPolicy: listing.refundPolicy,
+    hostWechatId: listing.hostWechatId,
+    joinNoteTemplate: listing.joinNoteTemplate,
+  }));
+}
+
 export function listAllGroupListings(): GroupListing[] {
-  return groupListings.map(applyGroupSeatOverride);
+  const staticListings = groupListings.map(applyGroupSeatOverride);
+  const dynamic = dynamicGroupListings().map(applyGroupSeatOverride);
+  const dynamicIds = new Set(dynamic.map((g) => g.id));
+  return [
+    ...staticListings.filter((g) => !dynamicIds.has(g.id)),
+    ...dynamic,
+  ];
 }
 
 export function listAllCompanionListings(): CompanionListing[] {
   return [...companionListings, ...dynamicCompanionListings()];
 }
 
-/** 买家浏览用组局列表（仅组局活动，不含陪玩） */
+/** 买家浏览用组局列表：Demo 仅展示自发 listing，隐藏静态 mock */
 export function listBrowseGroupListings(): GroupListing[] {
-  return listAllGroupListings().filter(
-    (g) => g.hostProviderId !== SELF_PROVIDER_ID,
-  );
+  return dynamicGroupListings().map(applyGroupSeatOverride);
 }
 
 /** 买家浏览用陪玩列表（不含自己的 SKU） */

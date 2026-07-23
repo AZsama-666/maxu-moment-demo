@@ -74,7 +74,7 @@ export function HomePage() {
       <div className="supply-launch-card">
         <div>
           <strong>发起自己的 Moment</strong>
-          <p>开放语音、视频或陪玩，让别人来约你</p>
+          <p>开放语音、视频、组局或陪玩，让别人来约你</p>
         </div>
         <Link
           to="/profile/my-moments/launch/type"

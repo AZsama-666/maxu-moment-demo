@@ -1,7 +1,13 @@
 import { useSyncExternalStore } from 'react';
+import { GROUP_WEREWOLF_DEMO_PRESET } from '../data/groupDemoPresets';
 import type { SkuType } from '../data/mock';
 import type {
+  GroupContentSection,
+  GroupRefundPolicy,
+} from '../data/marketMock';
+import type {
   CompanionSupplyListing,
+  GroupSupplyListing,
   OneToOneSupplyListing,
 } from './supplyStore';
 
@@ -23,6 +29,15 @@ export type LaunchDraft = {
   serviceTime: string;
   placeLabel: string;
   seats: number;
+  intro: string;
+  hostIntro: string;
+  hostWechatId: string;
+  joinNoteTemplate: string;
+  hostBadge: string;
+  hostOrganizedCount: number;
+  coverImageUrl: string;
+  refundPolicy: GroupRefundPolicy;
+  contentSections: GroupContentSection[];
 };
 
 const STORAGE_KEY = 'maxu-moment-launch-draft-v2';
@@ -44,6 +59,17 @@ function createEmptyDraft(): LaunchDraft {
     serviceTime: '周六 19:30',
     placeLabel: '线上',
     seats: 5,
+    intro: '',
+    hostIntro: '',
+    hostWechatId: '',
+    joinNoteTemplate: '',
+    hostBadge: '',
+    hostOrganizedCount: 0,
+    coverImageUrl: '',
+    refundPolicy: {
+      fullRefundHoursBefore: 24,
+    },
+    contentSections: [],
   };
 }
 
@@ -138,13 +164,53 @@ function applySkuDefaults(skuType?: SkuType) {
     draft.description = '按约定时间完成陪玩服务，完成后双方确认交割。';
     draft.priceYuan = 39;
     draft.bookingOpen = false;
+  } else if (skuType === 'group') {
+    const preset = GROUP_WEREWOLF_DEMO_PRESET;
+    draft.title = preset.title;
+    draft.description = preset.description;
+    draft.intro = preset.intro;
+    draft.serviceTime = preset.whenLabel;
+    draft.placeLabel = preset.placeLabel;
+    draft.priceYuan = preset.priceYuan;
+    draft.seats = preset.seats;
+    draft.coverImageUrl = preset.coverImageUrl;
+    draft.hostBadge = preset.hostBadge;
+    draft.hostOrganizedCount = preset.hostOrganizedCount;
+    draft.hostIntro = preset.hostIntro;
+    draft.hostWechatId = preset.hostWechatId;
+    draft.joinNoteTemplate = preset.joinNoteTemplate;
+    draft.refundPolicy = preset.refundPolicy;
+    draft.contentSections = preset.contentSections;
+    draft.bookingOpen = false;
   }
 }
 
 export function loadListingIntoDraft(
-  listing: OneToOneSupplyListing | CompanionSupplyListing,
+  listing: OneToOneSupplyListing | CompanionSupplyListing | GroupSupplyListing,
 ) {
-  if (listing.kind === '1v1') {
+  if (listing.kind === 'group') {
+    draft = {
+      ...createEmptyDraft(),
+      editingId: listing.id,
+      skuType: 'group',
+      title: listing.title,
+      description: listing.description,
+      intro: listing.intro,
+      serviceTime: listing.whenLabel,
+      placeLabel: listing.placeLabel,
+      priceYuan: listing.priceYuan,
+      seats: listing.seats,
+      coverImageUrl: listing.coverImageUrl,
+      hostBadge: listing.hostBadge,
+      hostOrganizedCount: listing.hostOrganizedCount,
+      hostIntro: listing.hostIntro,
+      hostWechatId: listing.hostWechatId,
+      joinNoteTemplate: listing.joinNoteTemplate,
+      refundPolicy: listing.refundPolicy,
+      contentSections: listing.contentSections,
+      bookingOpen: false,
+    };
+  } else if (listing.kind === '1v1') {
     draft = {
       ...createEmptyDraft(),
       editingId: listing.id,
@@ -182,7 +248,9 @@ export function clearLaunchDraft() {
 }
 
 export function validateScheduleDraft(current = draft): string | null {
-  if (current.skuType === 'companion') return null;
+  if (current.skuType === 'companion' || current.skuType === 'group') {
+    return null;
+  }
   if (!current.availFrom.trim() || !current.availTo.trim()) {
     return '请完整填写营业时间';
   }
@@ -194,5 +262,25 @@ export function draftScheduleConfig(current = draft) {
     bookingOpen: current.bookingOpen,
     availFrom: current.availFrom,
     availTo: current.availTo,
+  };
+}
+
+export function draftToGroupCreateInput(current = draft) {
+  return {
+    title: current.title,
+    description: current.description,
+    intro: current.intro,
+    whenLabel: current.serviceTime,
+    placeLabel: current.placeLabel,
+    priceYuan: current.priceYuan,
+    seats: current.seats,
+    coverImageUrl: current.coverImageUrl,
+    hostBadge: current.hostBadge,
+    hostOrganizedCount: current.hostOrganizedCount,
+    hostIntro: current.hostIntro,
+    hostWechatId: current.hostWechatId,
+    joinNoteTemplate: current.joinNoteTemplate,
+    refundPolicy: current.refundPolicy,
+    contentSections: current.contentSections,
   };
 }

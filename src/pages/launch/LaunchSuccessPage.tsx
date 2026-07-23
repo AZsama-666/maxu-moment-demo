@@ -19,7 +19,11 @@ export function LaunchSuccessPage() {
   }
 
   const buyerPath =
-    listing.kind === 'companion' ? `/companion/${listing.id}` : `/moment/${listing.id}`;
+    listing.kind === 'group'
+      ? `/group/${listing.id}`
+      : listing.kind === 'companion'
+        ? `/companion/${listing.id}`
+        : `/moment/${listing.id}`;
   const opposite =
     listing.kind === '1v1'
       ? listing.form === 'voice'
@@ -38,12 +42,27 @@ export function LaunchSuccessPage() {
         <h2>{isOpen ? 'Moment 已发布' : 'Moment 已保存'}</h2>
         <p className="muted">
           {isOpen
-            ? demoOrder
-              ? `访客买家已预约 ${demoOrder.slotLabel}，可直接体验供给方履约流程。`
-              : `买家现在可以在市集看到「${listing.title}」。`
+            ? listing.kind === 'group'
+              ? `组局活动已发布。买家可在组局 Tab 看到「${listing.title}」。`
+              : demoOrder
+                ? `访客买家已预约 ${demoOrder.slotLabel}，可直接体验供给方履约流程。`
+                : `买家现在可以在市集看到「${listing.title}」。`
             : `「${listing.title}」仍为下架状态，可在管理页重新上架。`}
         </p>
-        {demoOrder && isOpen && (
+        {listing.kind === 'group' && isOpen && (
+          <>
+            <Link
+              to={`/profile/my-moments/${listing.id}/manage`}
+              className="btn btn--primary btn--block"
+            >
+              管理本活动
+            </Link>
+            <Link to={buyerPath} className="btn btn--ghost btn--block">
+              查看买家详情页
+            </Link>
+          </>
+        )}
+        {demoOrder && isOpen && listing.kind === '1v1' && (
           <>
             <Link
               to="/profile/my-moments/tasks"
