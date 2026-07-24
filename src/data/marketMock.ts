@@ -1,3 +1,4 @@
+import { GROUP_SELF_LISTING_ID, GROUP_WEREWOLF_DEMO_PRESET } from './groupDemoPresets';
 import { getProvider, listBrowseMoments } from './catalog';
 import {
   SELF_PROVIDER_ID,
@@ -181,7 +182,37 @@ export type HomeFeedItem =
   | { kind: 'person'; person: PersonListing }
   | { kind: 'group'; group: GroupListing };
 
+/** 首页组局 Tab 固定展示的狼人杀 SKU（与供给端发起预填一致，主理人玛薯） */
+export function createCatalogWerewolfGroupListing(): GroupListing {
+  const preset = GROUP_WEREWOLF_DEMO_PRESET;
+  return {
+    kind: 'group',
+    id: GROUP_SELF_LISTING_ID,
+    hostProviderId: SELF_PROVIDER_ID,
+    title: preset.title,
+    hostName: '玛薯',
+    avatarColor: '#4ADCC4',
+    coverImageUrl: preset.coverImageUrl,
+    whenLabel: preset.whenLabel,
+    placeLabel: preset.placeLabel,
+    distanceLabel: '3.2km',
+    priceYuan: preset.priceYuan,
+    seatsLeft: preset.seats,
+    joinedCount: 0,
+    hostBadge: preset.hostBadge,
+    description: preset.description,
+    intro: preset.intro,
+    contentSections: preset.contentSections,
+    hostOrganizedCount: preset.hostOrganizedCount,
+    hostIntro: preset.hostIntro,
+    refundPolicy: preset.refundPolicy,
+    hostWechatId: preset.hostWechatId,
+    joinNoteTemplate: preset.joinNoteTemplate,
+  };
+}
+
 export const groupListings: GroupListing[] = [
+  createCatalogWerewolfGroupListing(),
   {
     kind: 'group',
     id: 'g-boardgame',
@@ -364,9 +395,12 @@ export function listAllCompanionListings(): CompanionListing[] {
   return [...companionListings, ...dynamicCompanionListings()];
 }
 
-/** 买家浏览用组局列表：Demo 仅展示自发 listing，隐藏静态 mock */
+/** 买家浏览用组局列表：固定展示玛薯狼人杀 SKU（与是否走过发起流程无关） */
 export function listBrowseGroupListings(): GroupListing[] {
-  return dynamicGroupListings().map(applyGroupSeatOverride);
+  const listing =
+    listAllGroupListings().find((g) => g.id === GROUP_SELF_LISTING_ID) ??
+    createCatalogWerewolfGroupListing();
+  return [applyGroupSeatOverride(listing)];
 }
 
 /** 买家浏览用陪玩列表（不含自己的 SKU） */
