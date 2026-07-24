@@ -395,12 +395,22 @@ export function listAllCompanionListings(): CompanionListing[] {
   return [...companionListings, ...dynamicCompanionListings()];
 }
 
-/** 买家浏览用组局列表：固定展示玛薯狼人杀 SKU（与是否走过发起流程无关） */
+/** 首页组局 Tab 固定展示的 SKU id（与是否走过发起流程无关） */
+const CATALOG_BROWSE_GROUP_IDS = [GROUP_SELF_LISTING_ID, 'g-coffee'] as const;
+
+/** 买家浏览用组局列表：固定展示狼人杀 + 咖啡 */
 export function listBrowseGroupListings(): GroupListing[] {
-  const listing =
-    listAllGroupListings().find((g) => g.id === GROUP_SELF_LISTING_ID) ??
-    createCatalogWerewolfGroupListing();
-  return [applyGroupSeatOverride(listing)];
+  const all = listAllGroupListings();
+  return CATALOG_BROWSE_GROUP_IDS.map((id) => {
+    if (id === GROUP_SELF_LISTING_ID) {
+      return (
+        all.find((g) => g.id === id) ?? createCatalogWerewolfGroupListing()
+      );
+    }
+    return all.find((g) => g.id === id);
+  })
+    .filter((g): g is GroupListing => g != null)
+    .map(applyGroupSeatOverride);
 }
 
 /** 买家浏览用陪玩列表（不含自己的 SKU） */
